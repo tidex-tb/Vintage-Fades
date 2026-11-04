@@ -76,7 +76,7 @@ configuration levels.
 | `WhatsApp__OwnerNotificationNumber` | **yes** | Owner's personal WhatsApp number (`+264…`) |
 | `WhatsApp__OwnerNotificationTemplate__Name/__Language` | recommended | Approved utility template for owner notifications |
 | `WhatsApp__ReminderTemplate__Name/__Language` | recommended | Approved utility template for reminders outside the 24 h window |
-| `Instagram__AccountId`, `Instagram__AccessToken`, `Instagram__AppSecret` | per channel | Empty = Instagram disabled |
+| `Instagram__AccessToken` (Page token of the linked Page), `Instagram__AccountId` (optional filter), `Instagram__AppSecret` (Instagram Login apps only) | per channel | Empty token = Instagram disabled |
 | `Facebook__PageId`, `Facebook__PageAccessToken` | per channel | Empty = Messenger disabled |
 | `Booking__Reminder24HoursEnabled`, `Booking__Reminder2HoursEnabled` | optional | Default `true` |
 | `Booking__PendingHoldMinutes` | optional | Default `10` |

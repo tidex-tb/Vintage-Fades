@@ -202,8 +202,8 @@ Apps created since 2026 cannot use "API setup with Instagram login"; the dashboa
 2. App Dashboard → Use cases → **Manage messaging & content on Instagram** → add **`instagram_basic`** and
    **`instagram_manage_messages`** (plus the Page permissions from section 3).
 3. Store:
-   - the Instagram professional account id (IG_ID) as `Instagram__AccountId` (webhook `entry.id` is matched
-     against it)
+   - optionally, the Instagram professional account id (IG_ID) as `Instagram__AccountId`. When set, webhook
+     entries for other accounts are ignored; when empty, every entry for this app is accepted
    - the **Page access token** of the linked Page (the same token as `Facebook__PageAccessToken`) as
      `Instagram__AccessToken`
    - leave `Instagram__AppSecret` empty: Facebook Login webhooks are signed with `Meta__AppSecret`

@@ -162,4 +162,16 @@ public class WebhookParserTests
         Assert.Equal("IGSID", message.SenderId);
         Assert.Empty(new MessengerWebhookParser(Opt(new FacebookOptions())).Parse(json).Messages);
     }
+
+    [Fact]
+    public void Instagram_needs_only_the_page_token_and_accepts_any_account_without_an_id()
+    {
+        const string json = """
+        {"object":"instagram","entry":[{"id":"IGID","time":1,"messaging":[
+          {"sender":{"id":"IGSID"},"recipient":{"id":"IGID"},"timestamp":1793000000000,"message":{"mid":"ig_1","text":"hello"}}]}]}
+        """;
+        Assert.True(new InstagramOptions { AccessToken = "page-token" }.IsConfigured);
+        Assert.Single(new InstagramWebhookParser(Opt(new InstagramOptions())).Parse(json).Messages);
+        Assert.Empty(new InstagramWebhookParser(Opt(new InstagramOptions { AccountId = "OTHER" })).Parse(json).Messages);
+    }
 }
