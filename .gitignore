@@ -1,0 +1,18 @@
+bin/
+obj/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+TestResults/
+*.swp
+# Local configuration and secrets must never be committed
+appsettings.Local.json
+appsettings.Production.json
+.env
+.env.*
+!.env.example
+backups/
+*.dump
+*.sql.gz

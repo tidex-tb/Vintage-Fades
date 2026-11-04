@@ -1,0 +1,6 @@
+* text=auto
+# Scripts and server config run on Linux: keep LF line endings.
+*.sh text eol=lf
+Dockerfile text eol=lf
+deploy/Caddyfile text eol=lf
+deploy/*.yml text eol=lf

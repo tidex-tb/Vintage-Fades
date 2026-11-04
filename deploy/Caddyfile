@@ -1,0 +1,17 @@
+# Caddy obtains and renews a Let's Encrypt certificate for PUBLIC_HOSTNAME automatically.
+{$PUBLIC_HOSTNAME} {
+	encode gzip
+
+	# Swagger/OpenAPI is only enabled in Development; block it at the edge as well.
+	@docs path /swagger* /openapi*
+	respond @docs 404
+
+	reverse_proxy app:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}
