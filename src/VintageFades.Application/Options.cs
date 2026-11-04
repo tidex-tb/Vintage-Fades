@@ -20,7 +20,7 @@ public sealed class ChatbotOptions
     public int ConversationResetHours { get; set; } = 24;
     public int ClarificationAttemptsBeforeHumanOffer { get; set; } = 2;
     /// <summary>When the shop replies from the WhatsApp Business app (Coexistence), the bot stays quiet in that chat this long.</summary>
-    public int ManualReplyPauseHours { get; set; } = 12;
+    public int ManualReplyPauseMinutes { get; set; } = 10;
 }
 
 /// <summary>Owner destination and approved WhatsApp templates. Bound from the "WhatsApp" section.</summary>

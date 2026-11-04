@@ -32,7 +32,7 @@ a conversation number, for example `#42`. Send these commands from your personal
 **WhatsApp (YCloud Coexistence):** just reply in your **WhatsApp Business app** as usual. You see every chat there,
 including what the bot said. As soon as you reply to a customer yourself, the bot goes quiet in that chat, stops
 holding any slot it offered, and sends you **BOT PAUSED – #42**. It starts answering that customer again after
-12 hours (`Chatbot__ManualReplyPauseHours`), or straight away when you send `RESUME 42`.
+10 minutes (`Chatbot__ManualReplyPauseMinutes`), or straight away when you send `RESUME 42`.
 
 **Instagram and Messenger:** reply in **Meta Business Suite**, then send `RESUME <id>`. The bot cannot see replies made there.
 

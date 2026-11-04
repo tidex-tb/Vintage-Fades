@@ -118,7 +118,7 @@ public sealed class InboundMessageHandler(
     /// <summary>
     /// The shop replied to a customer from the WhatsApp Business app (Coexistence). The bot steps back in that chat
     /// (releasing any hold it had offered) so it never talks over a person, and resumes after
-    /// <see cref="ChatbotOptions.ManualReplyPauseHours"/> or when the owner sends RESUME.
+    /// <see cref="ChatbotOptions.ManualReplyPauseMinutes"/> or when the owner sends RESUME.
     /// </summary>
     public async Task HandleBusinessAppReplyAsync(BusinessAppReply reply, CancellationToken ct)
     {
@@ -150,13 +150,13 @@ public sealed class InboundMessageHandler(
             {
                 if (BookingDraft.Deserialize(conversation.CurrentBookingIntent).HeldBookingId is long holdId)
                     await bookings.ReleaseHoldAsync(holdId, ct);
-                var hours = chatbotOptions.Value.ManualReplyPauseHours;
+                var minutes = chatbotOptions.Value.ManualReplyPauseMinutes;
                 conversation.CurrentState = ConversationState.HumanSupportRequested;
-                conversation.CurrentBookingIntent = new BookingDraft { AutoResumeAtUtc = now.AddHours(hours) }.Serialize();
+                conversation.CurrentBookingIntent = new BookingDraft { AutoResumeAtUtc = now.AddMinutes(minutes) }.Serialize();
                 await notifications.EnqueueOwnerNotificationAsync(NotificationTypes.HumanAssistance,
                     "BOT PAUSED – VINTAGE FADES\n" +
                     $"You replied to {conversation.Customer?.FullName ?? conversation.Customer?.PhoneNumber ?? "a customer"} in the WhatsApp Business app, " +
-                    $"so the bot will stay quiet in that chat for {hours} hours.\n" +
+                    $"so the bot will stay quiet in that chat for {minutes} minutes.\n" +
                     $"Conversation: #{conversation.Id}. Reply RESUME {conversation.Id} to hand it back sooner.",
                     $"bot-paused:{conversation.Id}:{reply.MessageId}", ct);
             }
