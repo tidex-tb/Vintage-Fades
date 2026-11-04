@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VintageFades.Application/VintageFades.Application.csproj" />
+    <Project Path="src/VintageFades.Domain/VintageFades.Domain.csproj" />
+    <Project Path="src/VintageFades.Infrastructure/VintageFades.Infrastructure.csproj" />
+    <Project Path="src/VintageFades.Integrations.Meta/VintageFades.Integrations.Meta.csproj" />
+    <Project Path="src/VintageFades.Web/VintageFades.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VintageFades.ArchitectureTests/VintageFades.ArchitectureTests.csproj" />
+    <Project Path="tests/VintageFades.IntegrationTests/VintageFades.IntegrationTests.csproj" />
+    <Project Path="tests/VintageFades.UnitTests/VintageFades.UnitTests.csproj" />
+  </Folder>
+</Solution>

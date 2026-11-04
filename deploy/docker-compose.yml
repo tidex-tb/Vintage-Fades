@@ -1,0 +1,57 @@
+# Single-server production stack: Caddy (automatic HTTPS) -> app -> PostgreSQL.
+# Usage (on the server, from this folder):  cp ../.env.example .env  && edit .env  &&  docker compose up -d --build
+name: vintagefades
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vintagefades
+      POSTGRES_USER: vintagefades
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vintagefades -d vintagefades"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not published to the host: only the app container can reach the database.
+
+  app:
+    build:
+      context: ..
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=vintagefades;Username=vintagefades;Password=${POSTGRES_PASSWORD};GSS Encryption Mode=Disable
+      Hosting__UseForwardedHeaders: "true"
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME:?set PUBLIC_HOSTNAME in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

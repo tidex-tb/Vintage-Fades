@@ -1,0 +1,73 @@
+namespace VintageFades.Application;
+
+public sealed class BookingOptions
+{
+    public const string SectionName = "Booking";
+
+    /// <summary>How long an offered slot is held (status Pending) while the customer confirms.</summary>
+    public int PendingHoldMinutes { get; set; } = 10;
+    public int MaxAlternatives { get; set; } = 5;
+    /// <summary>Operational switches for the 1440-minute and 120-minute reminder offsets in ShopSettings.</summary>
+    public bool Reminder24HoursEnabled { get; set; } = true;
+    public bool Reminder2HoursEnabled { get; set; } = true;
+}
+
+public sealed class ChatbotOptions
+{
+    public const string SectionName = "Chatbot";
+
+    /// <summary>An unfinished conversation older than this restarts from the menu.</summary>
+    public int ConversationResetHours { get; set; } = 24;
+    public int ClarificationAttemptsBeforeHumanOffer { get; set; } = 2;
+    /// <summary>When the shop replies from the WhatsApp Business app (Coexistence), the bot stays quiet in that chat this long.</summary>
+    public int ManualReplyPauseHours { get; set; } = 12;
+}
+
+/// <summary>Owner destination and approved WhatsApp templates. Bound from the "WhatsApp" section.</summary>
+public sealed class NotificationOptions
+{
+    public const string SectionName = "WhatsApp";
+
+    /// <summary>Owner's WhatsApp number in international format (digits, optional leading +). Must differ from the business number.</summary>
+    public string? OwnerNotificationNumber { get; set; }
+    public TemplateOptions OwnerNotificationTemplate { get; set; } = new();
+    public TemplateOptions ReminderTemplate { get; set; } = new();
+
+    public string? OwnerRecipient => PhoneNumbers.Normalize(OwnerNotificationNumber);
+}
+
+public sealed class TemplateOptions
+{
+    /// <summary>Approved template name. Empty = no template; free-form text is attempted instead.</summary>
+    public string? Name { get; set; }
+    public string Language { get; set; } = "en";
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(Name);
+}
+
+public sealed class OutboxOptions
+{
+    public const string SectionName = "Outbox";
+    public int MaxAttempts { get; set; } = 8;
+    public int BaseRetryDelaySeconds { get; set; } = 30;
+    public int MaxRetryDelayMinutes { get; set; } = 60;
+}
+
+public sealed class RetentionOptions
+{
+    public const string SectionName = "Retention";
+    public int ConversationMessageDays { get; set; } = 90;
+    public int WebhookEventDays { get; set; } = 30;
+    public int OutboxMessageDays { get; set; } = 90;
+    public int NotificationLogDays { get; set; } = 180;
+}
+
+public static class PhoneNumbers
+{
+    /// <summary>Digits only (WhatsApp wa_id format). Null when empty.</summary>
+    public static string? Normalize(string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return null;
+        var digits = new string(phone.Where(char.IsAsciiDigit).ToArray());
+        return digits.Length == 0 ? null : digits;
+    }
+}
