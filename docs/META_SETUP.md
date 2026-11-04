@@ -190,36 +190,38 @@ window. **Message tags such as `CONFIRMED_EVENT_UPDATE` were deprecated by Meta 
 from 27 April 2026).** For that reason Messenger reminders are only sent when the customer wrote in the last 24 hours.
 Otherwise they are recorded as `Skipped`. Messenger utility templates exist but are not used in Phase 1.
 
-## 4. Instagram Direct Messages (Instagram API with Instagram Login)
+## 4. Instagram Direct Messages (Instagram API with Facebook Login)
 
-Source: <https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/messaging-api>
+Source: <https://developers.facebook.com/docs/messenger-platform/instagram/features/send-message>
 
-1. The shop's Instagram account must be a **professional account** (Business or Creator). Instagram app →
-   Settings → Account type.
-2. App Dashboard → **Add product → Instagram → API setup with Instagram login**.
-3. **Generate a token**: add the Instagram account and log in. Required permissions:
-   **`instagram_business_basic`** and **`instagram_business_manage_messages`**. Store:
-   - the Instagram professional account id (IG_ID) as `Instagram__AccountId`
-   - the access token as `Instagram__AccessToken`
-   - the **Instagram app secret** shown on the same page as `Instagram__AppSecret` (webhooks for Instagram Login
-     apps are signed with it; if left empty, `Meta__AppSecret` is used)
+Apps created since 2026 cannot use "API setup with Instagram login"; the dashboard offers **Unified login**
+(Facebook Login) instead. The bot then talks to Instagram through the Facebook Page the account is linked to.
+
+1. The shop's Instagram account must be a **professional account** (Business or Creator) and **linked to the
+   shop's Facebook Page** (Page settings → Linked accounts → Instagram).
+2. App Dashboard → Use cases → **Manage messaging & content on Instagram** → add **`instagram_basic`** and
+   **`instagram_manage_messages`** (plus the Page permissions from section 3).
+3. Store:
+   - the Instagram professional account id (IG_ID) as `Instagram__AccountId` (webhook `entry.id` is matched
+     against it)
+   - the **Page access token** of the linked Page (the same token as `Facebook__PageAccessToken`) as
+     `Instagram__AccessToken`
+   - leave `Instagram__AppSecret` empty: Facebook Login webhooks are signed with `Meta__AppSecret`
+   - `Instagram__GraphBaseUrl` stays `https://graph.facebook.com` (the default). The bot sends to
+     `POST /v26.0/me/messages`, where `me` is the Page that owns the token.
 4. **Webhooks:** Callback URL `https://<host>/webhooks/instagram`, verify token `Meta__WebhookVerifyToken`.
-   Subscribe to **`messages`** and **`messaging_postbacks`**. The account itself must also be subscribed:
-   `POST https://graph.instagram.com/v26.0/me/subscribed_apps?subscribed_fields=messages` with the account's token.
+   Subscribe to **`messages`** and **`messaging_postbacks`** on the `instagram` object. The Page must also be
+   subscribed (section 3, `subscribed_apps`).
 5. In the Instagram app, make sure connected tools may access messages (Settings → Messages and story replies →
    Message controls → Connected tools → **Allow access to messages**), if the option is shown.
 6. **Access level:** Meta's page states that *Standard Access* is enough when the app serves accounts you own or
    manage (or added in the App Dashboard), but "some features may not work until Advanced Access is granted".
-   Plan for **App Review** of `instagram_business_manage_messages` so that DMs from the public arrive in Live mode.
+   Plan for **App Review** of `instagram_manage_messages` so that DMs from the public arrive in Live mode.
    **Not verified for this account.**
-7. **Token lifetime:** Instagram user tokens are long-lived (about 60 days) and must be **refreshed before they
-   expire**:
-   ```bash
-   curl -s "https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=<current-token>"
-   ```
-   Put the new token in `Instagram__AccessToken` and restart the app. Set a calendar reminder every 45 days. If
-   the token expires, sends fail with error 190 and the owner gets a **SYSTEM ALERT** on WhatsApp. Automatic
-   refresh is not in Phase 1.
+7. **Token lifetime:** use the same non-expiring system-user Page token as Messenger. A Page token copied from
+   the dashboard after a normal login can expire; if it does, sends fail with error 190 and the owner gets a
+   **SYSTEM ALERT** on WhatsApp. Generate a new token and update `Instagram__AccessToken` and
+   `Facebook__PageAccessToken`.
 
 Rules the service follows: replies only within the 24-hour window after the customer's message. Text is at most
 1000 bytes per message (longer replies are split). Group messaging is not supported. Instagram has no template
@@ -233,7 +235,7 @@ replies) is **not** used by automated messages.
 | WhatsApp (direct Meta) | `https://<host>/webhooks/whatsapp` | `messages` | `Meta__AppSecret` |
 | WhatsApp (YCloud) | `https://<host>/webhooks/ycloud` (set in YCloud, not Meta) | `whatsapp.inbound_message.received`, `whatsapp.message.updated`, `whatsapp.smb.message.echoes` | `YCloud__WebhookSecret` |
 | Messenger | `https://<host>/webhooks/messenger` | `messages`, `messaging_postbacks` | `Meta__AppSecret` |
-| Instagram | `https://<host>/webhooks/instagram` | `messages`, `messaging_postbacks` | `Instagram__AppSecret` (fallback `Meta__AppSecret`) |
+| Instagram | `https://<host>/webhooks/instagram` | `messages`, `messaging_postbacks` | `Meta__AppSecret` (`Instagram__AppSecret` only for Instagram Login apps) |
 
 All three use the same verify token (`Meta__WebhookVerifyToken`). Every POST must carry a valid
 `X-Hub-Signature-256` (HMAC-SHA256 of the raw body). Anything else is rejected with 401 and not stored.
@@ -244,7 +246,7 @@ All three use the same verify token (`Meta__WebhookVerifyToken`). Every POST mus
 |---|---|---|---|
 | WhatsApp | `whatsapp_business_messaging`, `whatsapp_business_management` | Advanced Access is needed to serve businesses outside your own portfolio. Own-portfolio use: confirm in App Review → Permissions. Business verification for production limits. Tech Provider status only for Coexistence through your own Embedded Signup. | System-user token, never expires |
 | Messenger | `pages_messaging`, `pages_manage_metadata`, `pages_show_list`, `pages_read_engagement` | `pages_messaging` Advanced Access (App Review) to message the public | System-user Page token, never expires |
-| Instagram | `instagram_business_basic`, `instagram_business_manage_messages` | Standard Access for accounts you manage; Advanced Access (App Review) likely needed for public DMs. Verify. | Instagram long-lived token (~60 days, refresh) |
+| Instagram | `instagram_basic`, `instagram_manage_messages` (plus the Page permissions) | Standard Access for accounts you manage; Advanced Access (App Review) likely needed for public DMs. Verify. | Page token of the linked Page (system-user token, never expires) |
 
 ## 7. Production access checklist
 
