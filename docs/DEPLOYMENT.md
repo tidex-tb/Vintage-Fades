@@ -71,7 +71,7 @@ configuration levels.
 | `Meta__ApiVersion` | optional | Default `v26.0` |
 | `WhatsApp__Provider` | yes | `YCloud` (existing number via Coexistence, the chosen setup) or `Meta` (direct Cloud API) |
 | `YCloud__ApiKey`, `YCloud__WebhookSecret`, `YCloud__FromNumber` | when Provider=YCloud | API key, webhook signing secret, shop number (`+264…`). Webhook URL: `https://<host>/webhooks/ycloud` |
-| `Chatbot__ManualReplyPauseHours` | optional | Default `12`. How long the bot stays quiet after the shop replies from the Business app |
+| `Chatbot__ManualReplyPauseMinutes` | optional | Default `10`. How long the bot stays quiet after the shop replies from the Business app |
 | `WhatsApp__PhoneNumberId`, `WhatsApp__BusinessAccountId`, `WhatsApp__AccessToken` | when Provider=Meta | Empty = WhatsApp disabled |
 | `WhatsApp__OwnerNotificationNumber` | **yes** | Owner's personal WhatsApp number (`+264…`) |
 | `WhatsApp__OwnerNotificationTemplate__Name/__Language` | recommended | Approved utility template for owner notifications |

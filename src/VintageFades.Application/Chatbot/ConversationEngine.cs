@@ -35,7 +35,7 @@ public sealed partial class ConversationEngine(
         var conversation = turn.Conversation;
         var now = time.GetUtcNow().UtcDateTime;
         // Human handover: stay silent until the owner hands the conversation back. A pause caused only by the shop
-        // replying from the WhatsApp Business app ends by itself after ManualReplyPauseHours.
+        // replying from the WhatsApp Business app ends by itself after ManualReplyPauseMinutes.
         if (conversation.CurrentState == ConversationState.HumanSupportRequested)
         {
             if (BookingDraft.Deserialize(conversation.CurrentBookingIntent).AutoResumeAtUtc is not { } resumeAt || now < resumeAt)

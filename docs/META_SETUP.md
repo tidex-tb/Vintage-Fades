@@ -122,7 +122,7 @@ directly to Meta as described in sections 3 and 4.
 
 **When the owner replies in the app:** YCloud reports it (`whatsapp.smb.message.echoes`). The bot stops replying in
 that chat, releases any slot it was holding, and sends the owner "BOT PAUSED". It resumes after
-`Chatbot__ManualReplyPauseHours` (default 12) or as soon as the owner sends `RESUME <id>`.
+`Chatbot__ManualReplyPauseMinutes` (default 10) or as soon as the owner sends `RESUME <id>`.
 
 **Notes:** coexistence numbers are limited to 20 messages per second. YCloud notes Coexistence can be less stable
 than a dedicated Cloud API number (sync delays, occasional disconnects). If the shop later moves to a direct Meta setup,
