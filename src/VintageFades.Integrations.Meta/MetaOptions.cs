@@ -59,8 +59,8 @@ public sealed class InstagramOptions
     /// <summary>Instagram app secret. Apps using "Instagram API with Instagram Login" sign webhooks with it;
     /// when empty, Meta:AppSecret is used.</summary>
     public string? AppSecret { get; set; }
-    /// <summary>graph.instagram.com for Instagram Login tokens; graph.facebook.com for Facebook Login (Page) tokens.</summary>
-    public string GraphBaseUrl { get; set; } = "https://graph.instagram.com";
+    /// <summary>graph.facebook.com for Facebook Login (Page) tokens; graph.instagram.com for Instagram Login tokens.</summary>
+    public string GraphBaseUrl { get; set; } = "https://graph.facebook.com";
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(AccountId) && !string.IsNullOrWhiteSpace(AccessToken);
 }

@@ -173,14 +173,15 @@ public sealed class MessengerChannel(HttpClient http, IOptions<MetaOptions> meta
     protected override void Decorate(JsonObject payload) => payload["messaging_type"] = "RESPONSE";
 }
 
-/// <summary>Instagram Messaging: POST /{version}/{ig-id}/messages (graph.instagram.com for Instagram Login tokens).
-/// Text is limited to 1000 UTF-8 bytes per message.</summary>
+/// <summary>Instagram Messaging: POST /{version}/me/messages. With a Page access token (Facebook Login, the only
+/// option for new apps) "me" is the Page linked to the Instagram account; with an Instagram Login token on
+/// graph.instagram.com it is the Instagram account. Text is limited to 1000 UTF-8 bytes per message.</summary>
 public sealed class InstagramChannel(HttpClient http, IOptions<MetaOptions> meta, IOptions<InstagramOptions> options, ILogger<InstagramChannel> logger)
     : SendApiChannel(http, logger)
 {
     public override Platform Platform => Platform.Instagram;
     public override bool IsConfigured => options.Value.IsConfigured;
-    protected override string Url => $"{options.Value.GraphBaseUrl.TrimEnd('/')}/{meta.Value.ApiVersion}/{options.Value.AccountId}/messages";
+    protected override string Url => $"{options.Value.GraphBaseUrl.TrimEnd('/')}/{meta.Value.ApiVersion}/me/messages";
     protected override string AccessToken => options.Value.AccessToken!;
     protected override bool Fits(string text) => Encoding.UTF8.GetByteCount(text) <= 1000;
 }

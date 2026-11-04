@@ -72,7 +72,7 @@ public class WebhookAndDeliveryTests(TestApp app) : IntegrationTest(app)
     }
 
     [Theory]
-    [InlineData(Platform.Instagram, "https://graph.instagram.com/v26.0/IGID/messages", "Bearer ig-token")]
+    [InlineData(Platform.Instagram, "https://graph.facebook.com/v26.0/me/messages", "Bearer ig-token")]
     [InlineData(Platform.Messenger, "https://graph.facebook.com/v26.0/PAGEID/messages", "Bearer fb-token")]
     [InlineData(Platform.WhatsApp, "https://graph.facebook.com/v26.0/PNID/messages", "Bearer wa-token")]
     public async Task Each_platform_enters_the_same_chatbot_and_replies_on_its_own_api(Platform platform, string url, string auth)
