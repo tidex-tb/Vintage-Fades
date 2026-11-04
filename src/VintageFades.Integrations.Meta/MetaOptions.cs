@@ -53,7 +53,8 @@ public sealed class InstagramOptions
 {
     public const string SectionName = "Instagram";
 
-    /// <summary>Instagram professional account id (IG_ID) that receives the messages.</summary>
+    /// <summary>Optional Instagram professional account id (IG_ID). When set, webhook entries for other accounts are
+    /// ignored; sending does not need it because replies go to /me/messages.</summary>
     public string? AccountId { get; set; }
     public string? AccessToken { get; set; }
     /// <summary>Instagram app secret. Apps using "Instagram API with Instagram Login" sign webhooks with it;
@@ -62,7 +63,7 @@ public sealed class InstagramOptions
     /// <summary>graph.facebook.com for Facebook Login (Page) tokens; graph.instagram.com for Instagram Login tokens.</summary>
     public string GraphBaseUrl { get; set; } = "https://graph.facebook.com";
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(AccountId) && !string.IsNullOrWhiteSpace(AccessToken);
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(AccessToken);
 }
 
 public sealed class FacebookOptions
