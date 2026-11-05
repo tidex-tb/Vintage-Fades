@@ -174,7 +174,7 @@ public sealed class InboundMessageHandler(
                 conversation.CurrentBookingIntent = new BookingDraft { AutoResumeAtUtc = resumeAt }.Serialize();
                 await notifications.EnqueueOwnerNotificationAsync(NotificationTypes.HumanAssistance,
                     "BOT PAUSED – VINTAGE FADES\n" +
-                    $"You replied to {conversation.Customer?.FullName ?? conversation.Customer?.PhoneNumber ?? "a customer"} in the WhatsApp Business app, " +
+                    $"You replied to {conversation.Customer?.FullName ?? conversation.Customer?.PhoneNumber ?? "a customer"} on {conversation.Platform.DisplayName()}, " +
                     $"so the bot will stay quiet in that chat for {minutes} minutes.\n" +
                     $"Conversation: #{conversation.Id}. Reply RESUME {conversation.Id} to hand it back sooner.",
                     $"bot-paused:{conversation.Id}:{reply.MessageId}", ct);

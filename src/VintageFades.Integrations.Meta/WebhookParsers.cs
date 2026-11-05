@@ -91,7 +91,7 @@ public sealed class WhatsAppWebhookParser(IOptions<WhatsAppOptions> options) : I
 /// entry[].messaging[] with sender.id, recipient.id, timestamp (ms), and message {mid, text, is_echo, quick_reply.payload}
 /// or postback {mid, title, payload}. Echoes of our own sends are flagged and ignored downstream.
 /// </summary>
-public abstract class MessagingWebhookParser : IWebhookPayloadParser
+public abstract class MessagingWebhookParser(IOptions<MetaOptions> meta) : IWebhookPayloadParser
 {
     public abstract Platform Platform { get; }
     protected abstract string ObjectName { get; }
@@ -103,6 +103,7 @@ public abstract class MessagingWebhookParser : IWebhookPayloadParser
         using var doc = JsonDocument.Parse(payload);
         var root = doc.RootElement;
         var messages = new List<InboundMessage>();
+        var replies = new List<BusinessAppReply>();
         if (WhatsAppWebhookParser.Str(root, "object") != ObjectName) return new(messages, [], null);
 
         foreach (var entry in WhatsAppWebhookParser.Arr(root, "entry"))
@@ -125,6 +126,16 @@ public abstract class MessagingWebhookParser : IWebhookPayloadParser
                     var isDeleted = m.TryGetProperty("is_deleted", out var del) && del.ValueKind == JsonValueKind.True;
                     if (isDeleted) continue;
                     var text = WhatsAppWebhookParser.Str(m, "text");
+                    if (isEcho)
+                    {
+                        // The Page sent this message. If this app sent it, it is our own reply. Otherwise a person typed it
+                        // in the Page or Instagram inbox (or Meta's automations sent it), which the bot treats as a handover.
+                        var appId = m.TryGetProperty("app_id", out var a) ? a.ToString() : null;
+                        var customer = e.TryGetProperty("recipient", out var r) ? WhatsAppWebhookParser.Str(r, "id") : null;
+                        if (customer is not null && (string.IsNullOrEmpty(appId) || appId != meta.Value.AppId))
+                            replies.Add(new BusinessAppReply(Platform, customer, mid, timestamp, text ?? "[attachment]"));
+                        continue;
+                    }
                     var quick = m.TryGetProperty("quick_reply", out var q) ? WhatsAppWebhookParser.Str(q, "payload") : null;
                     var type = quick is not null ? MessageType.Interactive : text is not null ? MessageType.Text : MessageType.Unsupported;
                     messages.Add(new InboundMessage(Platform, sender, mid, timestamp, type, text, quick, null, isEcho));
@@ -139,18 +150,18 @@ public abstract class MessagingWebhookParser : IWebhookPayloadParser
                 // delivery, read, reaction and seen events need no action.
             }
         }
-        return new(messages, [], messages.FirstOrDefault()?.MessageId);
+        return new(messages, [], messages.FirstOrDefault()?.MessageId ?? replies.FirstOrDefault()?.MessageId) { BusinessReplies = replies };
     }
 }
 
-public sealed class MessengerWebhookParser(IOptions<FacebookOptions> options) : MessagingWebhookParser
+public sealed class MessengerWebhookParser(IOptions<FacebookOptions> options, IOptions<MetaOptions> meta) : MessagingWebhookParser(meta)
 {
     public override Platform Platform => Platform.Messenger;
     protected override string ObjectName => "page";
     protected override string? AccountId => options.Value.PageId;
 }
 
-public sealed class InstagramWebhookParser(IOptions<InstagramOptions> options) : MessagingWebhookParser
+public sealed class InstagramWebhookParser(IOptions<InstagramOptions> options, IOptions<MetaOptions> meta) : MessagingWebhookParser(meta)
 {
     public override Platform Platform => Platform.Instagram;
     protected override string ObjectName => "instagram";

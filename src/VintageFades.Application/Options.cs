@@ -21,7 +21,7 @@ public sealed class ChatbotOptions
     public int ClarificationAttemptsBeforeHumanOffer { get; set; } = 2;
     /// <summary>Messages the WhatsApp Business app sends by itself (greeting, away message) start with one of these.
     /// They are not a person replying, so they never pause the bot.</summary>
-    public List<string> AutomatedMessagePrefixes { get; set; } = ["Thank you for contacting Vintage Fades"];
+    public List<string> AutomatedMessagePrefixes { get; set; } = ["Thank you for contacting Vintage Fades", "Hi! Are you looking for a good Barber?"];
     /// <summary>A customer who goes quiet in the middle of a booking is asked whether they want to continue after this long.</summary>
     public int IdleCheckMinutes { get; set; } = 10;
     /// <summary>If they still do not answer the question after this long, the booking session is reset.</summary>
