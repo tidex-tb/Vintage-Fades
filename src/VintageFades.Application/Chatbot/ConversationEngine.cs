@@ -22,10 +22,12 @@ public sealed partial class ConversationEngine(
     IAppDbContext db,
     TimeProvider time,
     IOptions<ChatbotOptions> chatbotOptions,
-    IOptions<BookingOptions> bookingOptions)
+    IOptions<BookingOptions> bookingOptions,
+    IOptions<ShopInfoOptions> shopInfoOptions)
 {
     private readonly ChatbotOptions _chatbot = chatbotOptions.Value;
     private readonly BookingOptions _booking = bookingOptions.Value;
+    private readonly ShopInfoOptions _info = shopInfoOptions.Value;
 
     private static readonly OutboundMessage[] NoReplies = [];
     private static readonly ReplyOption[] YesNo = [new("yes", "Yes"), new("no", "No")];
@@ -80,6 +82,20 @@ public sealed partial class ConversationEngine(
         {
             await ResetAsync(ctx, ct);
             ShowMenu(ctx, welcome: false);
+            return;
+        }
+        // A bare "hi" in the middle of a booking means the customer wants to start again, not that they were misunderstood.
+        if (ctx.Intent == Intent.Greeting && ctx.State is not (ConversationState.Idle or ConversationState.Greeting or ConversationState.BookingConfirmed))
+        {
+            await ResetAsync(ctx, ct);
+            ShowMenu(ctx, welcome: false);
+            return;
+        }
+        // Price, hours and location questions are answered wherever the customer is, unless the same message
+        // also carries a day, time or barber that the booking flow should use.
+        if (ctx.Intent.HasFlag(Intent.Info) && !ctx.Intent.HasFlag(Intent.Cancel) && !Extract(ctx, ctx.Text, allowBareNumber: false).Any)
+        {
+            ShowInfo(ctx);
             return;
         }
 
@@ -141,6 +157,27 @@ public sealed partial class ConversationEngine(
             return;
         }
         Unknown(ctx);
+    }
+
+    /// <summary>Prices, hours and address, then back to wherever the customer was. Never counts as a misunderstanding.</summary>
+    private void ShowInfo(TurnContext ctx)
+    {
+        var s = ctx.Calendar.Settings;
+        var text = new StringBuilder();
+        if (_info.Prices.Count > 0)
+        {
+            text.AppendLine("Our prices:");
+            foreach (var price in _info.Prices) text.AppendLine($"• {price}");
+            text.AppendLine();
+        }
+        text.AppendLine(string.IsNullOrWhiteSpace(_info.Hours)
+            ? $"Opening hours: {Format.Time(s.OpeningTime)} – {Format.Time(s.ClosingTime)}"
+            : $"Opening hours: {_info.Hours}");
+        if (!string.IsNullOrWhiteSpace(_info.Address)) text.AppendLine($"Find us: {_info.Address}");
+        text.AppendLine();
+        var midBooking = ctx.State is not (ConversationState.Idle or ConversationState.Greeting or ConversationState.BookingConfirmed or ConversationState.ViewingBookings);
+        text.Append(midBooking ? "Back to your booking: " + StatePrompt(ctx) : "Ready to book? Just tell me a day, for example *tomorrow* or *Friday*.");
+        ctx.Reply(text.ToString());
     }
 
     private void ShowMenu(TurnContext ctx, bool welcome)
@@ -229,27 +266,9 @@ public sealed partial class ConversationEngine(
         var timeOfDay = d.Time.Value;
         var ignore = ctx.IgnoreBookingId;
 
-        if (d.BarberMode == BarberPreferenceKind.None)
-        {
-            var free = await bookings.GetAvailableBarbersAsync(date, timeOfDay, ignore, ct);
-            if (free.Count == 0)
-            {
-                await OfferAlternativesAsync(ctx, $"Unfortunately, all our barbers are booked for {Format.Time(timeOfDay)} on {Format.DateShort(date)}.", ct);
-                return;
-            }
-            d.BarberChoices = free.OrderBy(b => b.StationNumber).Select(b => b.Id).ToList();
-            var options = new List<ReplyOption> { new("1", "First available") };
-            var lines = new StringBuilder("Would you prefer a specific barber or the first available barber?\n\n1. First available");
-            for (var i = 0; i < d.BarberChoices.Count; i++)
-            {
-                var name = ctx.BarberName(d.BarberChoices[i]);
-                lines.Append($"\n{i + 2}. {name}");
-                options.Add(new((i + 2).ToString(), name));
-            }
-            ctx.Reply(lines.ToString(), options);
-            ctx.State = ConversationState.SelectingBarber;
-            return;
-        }
+        // No barber named: book the first one free. The customer can still name one at any step
+        // (the slot list and the confirmation both say so).
+        if (d.BarberMode == BarberPreferenceKind.None) d.BarberMode = BarberPreferenceKind.Any;
 
         var requestedId = d.BarberMode == BarberPreferenceKind.Specific ? d.BarberId : null;
         var status = await bookings.GetSlotStatusAsync(date, timeOfDay, requestedId, ignore, ct);
@@ -330,7 +349,8 @@ public sealed partial class ConversationEngine(
     {
         var d = ctx.Draft;
         ctx.Reply($"{Format.Time(d.Time!.Value)} is available!\n" +
-                  $"Would you like me to confirm your appointment for {Format.DateShort(d.Date!.Value)} at {Format.Time(d.Time.Value)} with {ctx.BarberName(d.ResolvedBarberId!.Value)}?",
+                  $"Would you like me to confirm your appointment for {Format.DateShort(d.Date!.Value)} at {Format.Time(d.Time.Value)} with {ctx.BarberName(d.ResolvedBarberId!.Value)}?\n" +
+                  "Reply *yes* to confirm, or name another barber or time.",
             YesNo);
         ctx.State = ConversationState.AwaitingBookingConfirmation;
     }
@@ -366,6 +386,8 @@ public sealed partial class ConversationEngine(
             options.Add(new((i + 1).ToString(), slot));
         }
         text.Append("\n\nReply with the number of the slot you'd like.");
+        if (barberId is null && ctx.Barbers.Count > 0)
+            text.Append($"\nWant a particular barber? Type their name: {string.Join(", ", ctx.Barbers.Select(b => b.DisplayName))}.");
         ctx.Reply(text.ToString(), options.Count <= 10 ? options : null);
         ctx.State = ConversationState.CollectingBookingTime;
     }
@@ -924,6 +946,18 @@ public sealed partial class ConversationEngine(
         ctx.State = resume;
         if (ctx.Intent.HasFlag(Intent.No))
         {
+            // "No, I want to book a haircut": the customer declined the offer and said what they want, so do that.
+            var details = Extract(ctx, ctx.Text, allowBareNumber: false);
+            if (ctx.Intent.HasFlag(Intent.Book) || details.Any)
+            {
+                await StartBookingAsync(ctx, details, ct);
+                return;
+            }
+            if ((ctx.Intent & ~(Intent.No | Intent.Thanks)) != Intent.None)
+            {
+                await RouteAsync(ctx, ct);
+                return;
+            }
             ctx.Reply("No problem, let's keep going. " + StatePrompt(ctx));
             return;
         }

@@ -24,6 +24,18 @@ public sealed class ChatbotOptions
     public int ManualReplyPauseMinutes { get; set; } = 10;
 }
 
+/// <summary>What the bot tells customers who ask about prices, hours or where the shop is.</summary>
+public sealed class ShopInfoOptions
+{
+    public const string SectionName = "ShopInfo";
+
+    public string? Address { get; set; }
+    /// <summary>One line per service, e.g. "Haircut (adults): N$150".</summary>
+    public List<string> Prices { get; set; } = [];
+    /// <summary>Opening hours as free text. When empty, the bot describes the hours from the shop settings.</summary>
+    public string? Hours { get; set; }
+}
+
 /// <summary>Owner destination and approved WhatsApp templates. Bound from the "WhatsApp" section.</summary>
 public sealed class NotificationOptions
 {
