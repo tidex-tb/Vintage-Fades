@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<WebhookProcessor>();
         services.AddScoped<OutboxDispatcher>();
         services.AddScoped<ReminderScheduler>();
+        services.AddScoped<IdleConversationService>();
         services.AddScoped<OperationalMonitor>();
         services.AddScoped<DataRetentionService>();
         services.AddScoped<OperationalStatusService>();

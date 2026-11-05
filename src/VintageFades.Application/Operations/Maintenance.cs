@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using VintageFades.Application.Abstractions;
+using VintageFades.Application.Abstractions;
 using VintageFades.Application.Bookings;
+using VintageFades.Application.Chatbot;
 using VintageFades.Application.Messaging;
 using VintageFades.Domain;
 
@@ -74,6 +76,96 @@ public sealed class ReminderScheduler(
         120 => options.Value.Reminder2HoursEnabled,
         _ => true
     });
+}
+
+/// <summary>
+/// A customer who goes quiet in the middle of a booking is asked once whether they want to continue. If that question
+/// also goes unanswered, the session is reset: any held slot is released and the next message starts from the menu.
+/// Only conversations inside the 24-hour messaging window are contacted.
+/// </summary>
+public sealed class IdleConversationService(
+    IAppDbContext db,
+    BookingService bookings,
+    NotificationService notifications,
+    TimeProvider time,
+    IOptions<ChatbotOptions> options,
+    ILogger<IdleConversationService> logger)
+{
+    private static readonly ConversationState[] MidFlow =
+    [
+        ConversationState.CollectingCustomerName, ConversationState.CollectingBookingDate, ConversationState.CollectingBookingTime,
+        ConversationState.SelectingBarber, ConversationState.OfferingAlternatives, ConversationState.AwaitingBookingConfirmation,
+        ConversationState.AwaitingCancellationSelection, ConversationState.AwaitingCancellationConfirmation,
+        ConversationState.Rescheduling, ConversationState.OfferingHumanSupport
+    ];
+
+    public async Task<int> ProcessAsync(CancellationToken ct)
+    {
+        var now = time.GetUtcNow().UtcDateTime;
+        var o = options.Value;
+        var quietSince = now.AddMinutes(-o.IdleCheckMinutes);
+        var windowStart = now.AddHours(-24);
+
+        var idle = await db.Conversations
+            .Where(c => MidFlow.Contains(c.CurrentState) && c.LastInboundAtUtc != null && c.LastInboundAtUtc < quietSince && c.LastInboundAtUtc > windowStart)
+            .ToListAsync(ct);
+
+        var changed = 0;
+        foreach (var conversation in idle)
+        {
+            try
+            {
+                var draft = BookingDraft.Deserialize(conversation.CurrentBookingIntent);
+                if (draft.IdleCheckSentAtUtc is null)
+                {
+                    draft.IdleCheckSentAtUtc = now;
+                    conversation.CurrentBookingIntent = draft.Serialize();
+                    await SendAsync(conversation, new OutboundMessage(
+                        "Are you still there? Would you like to continue with your booking?\n\n" +
+                        "Reply *yes* to carry on, or *menu* to start again. If I don't hear back, I'll close this request.",
+                        [new("yes", "Yes, continue"), new("menu", "Start again")]), now, ct);
+                }
+                else if (draft.IdleCheckSentAtUtc <= now.AddMinutes(-o.IdleResetMinutes))
+                {
+                    if (draft.HeldBookingId is long holdId) await bookings.ReleaseHoldAsync(holdId, ct);
+                    conversation.CurrentState = ConversationState.Idle;
+                    conversation.CurrentBookingIntent = null;
+                    await SendAsync(conversation, new OutboundMessage(
+                        "I haven't heard back, so I've closed your booking request and released the slot. Message me any time to book again. 💈"), now, ct);
+                }
+                else
+                {
+                    continue;
+                }
+                conversation.UpdatedAtUtc = now;
+                await db.SaveChangesAsync(ct);
+                changed++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Idle check failed for conversation {ConversationId}", conversation.Id);
+            }
+        }
+        if (changed > 0) logger.LogInformation("Idle conversations handled: {Count}", changed);
+        return changed;
+    }
+
+    private async Task SendAsync(Conversation conversation, OutboundMessage message, DateTime now, CancellationToken ct)
+    {
+        var logged = new ConversationMessage
+        {
+            ConversationId = conversation.Id,
+            Platform = conversation.Platform,
+            Direction = MessageDirection.Outbound,
+            MessageType = message.Options is null ? MessageType.Text : MessageType.Interactive,
+            MessageContent = message.Text,
+            ProcessingStatus = ProcessingStatus.Pending,
+            ReceivedAtUtc = now
+        };
+        db.ConversationMessages.Add(logged);
+        await db.SaveChangesAsync(ct);
+        notifications.EnqueueCustomerMessage(conversation, message, logged.Id);
+    }
 }
 
 /// <summary>Detects stalled processing and alerts the owner (at most once per hour per problem).</summary>

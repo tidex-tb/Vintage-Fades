@@ -57,9 +57,18 @@ public sealed partial class ConversationEngine(
             conversation.CurrentState = ConversationState.Idle;
         }
 
+        // The customer was asked "are you still there?". Any reply cancels the pending reset. A plain "yes" only means
+        // "carry on": it must not be taken as the answer to the booking question that was open when they went quiet.
+        var wasIdleChecked = ctx.Draft.IdleCheckSentAtUtc is not null;
+        ctx.Draft.IdleCheckSentAtUtc = null;
+
         if (turn.MessageType == MessageType.Unsupported)
         {
             ctx.Reply("Sorry, I can only read text messages at the moment. " + StatePrompt(ctx));
+        }
+        else if (wasIdleChecked && ctx.Intent == Intent.Yes)
+        {
+            ctx.Reply("Great, let's carry on. " + StatePrompt(ctx));
         }
         else
         {
@@ -84,11 +93,10 @@ public sealed partial class ConversationEngine(
             ShowMenu(ctx, welcome: false);
             return;
         }
-        // A bare "hi" in the middle of a booking means the customer wants to start again, not that they were misunderstood.
+        // A bare "hi" in the middle of a booking is not a misunderstanding and does not reset anything: pick up where we were.
         if (ctx.Intent == Intent.Greeting && ctx.State is not (ConversationState.Idle or ConversationState.Greeting or ConversationState.BookingConfirmed))
         {
-            await ResetAsync(ctx, ct);
-            ShowMenu(ctx, welcome: false);
+            ctx.Reply("Hi again! Let's pick up where we left off. " + StatePrompt(ctx));
             return;
         }
         // Price, hours and location questions are answered wherever the customer is, unless the same message

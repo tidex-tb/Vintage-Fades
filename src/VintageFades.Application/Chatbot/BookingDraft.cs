@@ -41,6 +41,9 @@ public sealed class BookingDraft
     /// <summary>Set when the bot paused for a person (customer asked, or the shop replied from the WhatsApp Business app);
     /// the bot resumes after this time.</summary>
     public DateTime? AutoResumeAtUtc { get; set; }
+    /// <summary>Set when the bot asked an idle customer whether they still want to continue. If they answer, the
+    /// question is cleared; if they stay silent, the conversation is reset.</summary>
+    public DateTime? IdleCheckSentAtUtc { get; set; }
 
     public string Serialize() => JsonSerializer.Serialize(this, Json);
 

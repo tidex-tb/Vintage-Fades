@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using VintageFades.Application.Operations;
 using VintageFades.Domain;
 using VintageFades.IntegrationTests.Infrastructure;
 
@@ -123,16 +125,76 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     }
 
     [Fact]
-    public async Task Hi_or_restart_in_the_middle_of_a_booking_returns_to_the_menu()
+    public async Task Hi_in_the_middle_of_a_booking_continues_it_and_restart_starts_over()
     {
         await Say("Can I book tomorrow?");
         var hi = await Say("hi");
-        Assert.Contains("What would you like to do?", hi);
+        Assert.Contains("Let's pick up where we left off.", hi);
+        Assert.Contains("Reply with the number of the slot", hi);
         Assert.DoesNotContain("didn't quite get that", hi);
 
         await Say("1");
         Assert.Contains("What would you like to do?", await Say("lets restart"));
         Assert.Equal(0, await App.Db(db => db.Bookings.CountAsync(b => b.Status == BookingStatus.Pending)));
+    }
+
+    private Task<int> RunIdleCheckAsync() => App.WithScopeAsync(sp => sp.GetRequiredService<IdleConversationService>().ProcessAsync(CancellationToken.None));
+
+    [Fact]
+    public async Task Quiet_customer_is_asked_to_continue_and_a_yes_resumes_without_confirming_anything()
+    {
+        await Say("Book me tomorrow at 14:00");
+        await Say("Sam"); // now waiting on the confirmation
+        Assert.Equal(BookingStatus.Pending, (await App.Db(db => db.Bookings.SingleAsync())).Status);
+
+        App.Time.Advance(TimeSpan.FromMinutes(9));
+        Assert.Equal(0, await RunIdleCheckAsync());
+
+        App.Time.Advance(TimeSpan.FromMinutes(2));
+        Assert.Equal(1, await RunIdleCheckAsync());
+        await App.DispatchAsync();
+        Assert.Contains(App.Meta.To(Customer), r => r.Text.Contains("Are you still there?"));
+        Assert.Equal(0, await RunIdleCheckAsync()); // asked only once
+
+        var reply = await Say("yes");
+        Assert.Contains("Great, let's carry on.", reply);
+        Assert.Contains("reply *yes* to confirm", reply);
+        Assert.DoesNotContain("is confirmed", reply);
+        Assert.NotEqual(BookingStatus.Confirmed, (await App.Db(db => db.Bookings.SingleAsync())).Status);
+
+        App.Time.Advance(TimeSpan.FromMinutes(30));
+        Assert.Equal(1, await RunIdleCheckAsync()); // quiet again: a fresh question, not a reset
+    }
+
+    [Fact]
+    public async Task Customer_who_ignores_the_question_has_the_session_reset_and_the_hold_released()
+    {
+        await Say("Book me tomorrow at 14:00");
+        await Say("Sam");
+
+        App.Time.Advance(TimeSpan.FromMinutes(11));
+        await RunIdleCheckAsync();
+        App.Time.Advance(TimeSpan.FromMinutes(9));
+        Assert.Equal(0, await RunIdleCheckAsync());
+
+        App.Time.Advance(TimeSpan.FromMinutes(2));
+        Assert.Equal(1, await RunIdleCheckAsync());
+        await App.DispatchAsync();
+        Assert.Contains(App.Meta.To(Customer), r => r.Text.Contains("closed your booking request"));
+
+        var conversation = await App.Db(db => db.Conversations.SingleAsync());
+        Assert.Equal(ConversationState.Idle, conversation.CurrentState);
+        Assert.Equal(BookingStatus.Cancelled, (await App.Db(db => db.Bookings.SingleAsync())).Status);
+        Assert.Equal(0, await RunIdleCheckAsync());
+        Assert.Contains("Welcome", await Say("hi"));
+    }
+
+    [Fact]
+    public async Task Customers_not_in_the_middle_of_a_booking_are_left_alone()
+    {
+        await Say("hi"); // menu only
+        App.Time.Advance(TimeSpan.FromMinutes(30));
+        Assert.Equal(0, await RunIdleCheckAsync());
     }
 
     [Fact]
