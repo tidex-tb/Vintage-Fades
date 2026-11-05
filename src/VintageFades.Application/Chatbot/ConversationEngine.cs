@@ -230,6 +230,13 @@ public sealed partial class ConversationEngine(
         var d = ctx.Draft;
         var today = ctx.Calendar.Today(ctx.Now);
 
+        // Barber first, then the date, then that barber's open slots.
+        if (d.BarberMode == BarberPreferenceKind.None)
+        {
+            AskBarber(ctx);
+            return;
+        }
+
         if (d.Date is null)
         {
             if (d.DateCandidates.Count > 0) { AskDateClarification(ctx); return; }
@@ -274,10 +281,6 @@ public sealed partial class ConversationEngine(
         var timeOfDay = d.Time.Value;
         var ignore = ctx.IgnoreBookingId;
 
-        // No barber named: book the first one free. The customer can still name one at any step
-        // (the slot list and the confirmation both say so).
-        if (d.BarberMode == BarberPreferenceKind.None) d.BarberMode = BarberPreferenceKind.Any;
-
         var requestedId = d.BarberMode == BarberPreferenceKind.Specific ? d.BarberId : null;
         var status = await bookings.GetSlotStatusAsync(date, timeOfDay, requestedId, ignore, ct);
 
@@ -316,6 +319,21 @@ public sealed partial class ConversationEngine(
         }
 
         await HoldSlotAsync(ctx, requestedId, ct);
+    }
+
+    private void AskBarber(TurnContext ctx)
+    {
+        var d = ctx.Draft;
+        d.BarberChoices = ctx.Barbers.Select(b => b.Id).ToList();
+        var options = new List<ReplyOption> { new("1", "First available") };
+        var text = new StringBuilder($"{(ctx.HasNotes ? "" : "Perfect. ")}Who would you like to book with?\n\n1. First available");
+        for (var i = 0; i < ctx.Barbers.Count; i++)
+        {
+            text.Append($"\n{i + 2}. {ctx.Barbers[i].DisplayName}");
+            options.Add(new((i + 2).ToString(), ctx.Barbers[i].DisplayName));
+        }
+        ctx.Reply(text.ToString(), options);
+        ctx.State = ConversationState.SelectingBarber;
     }
 
     private async Task HoldSlotAsync(TurnContext ctx, int? barberId, CancellationToken ct)
@@ -394,8 +412,6 @@ public sealed partial class ConversationEngine(
             options.Add(new((i + 1).ToString(), slot));
         }
         text.Append("\n\nReply with the number of the slot you'd like.");
-        if (barberId is null && ctx.Barbers.Count > 0)
-            text.Append($"\nWant a particular barber? Type their name: {string.Join(", ", ctx.Barbers.Select(b => b.DisplayName))}.");
         ctx.Reply(text.ToString(), options.Count <= 10 ? options : null);
         ctx.State = ConversationState.CollectingBookingTime;
     }
@@ -531,13 +547,20 @@ public sealed partial class ConversationEngine(
             await ContinueAsync(ctx, ct);
             return;
         }
-        // A bare number picks from the numbered slot list ("2" is the second slot, not 02:00).
-        if (d.TimeChoices.Count > 0 && TryNumber(ctx.Text, out var slot) && slot >= 1 && slot <= d.TimeChoices.Count)
+        // A bare number picks from the numbered slot list ("2" is the second slot, not 02:00). A barber may come with
+        // it ("9 Luther"): the slot is taken and the barber is applied.
+        if (d.TimeChoices.Count > 0)
         {
-            d.Time = d.TimeChoices[slot - 1];
-            d.TimeChoices = [];
-            await ContinueAsync(ctx, ct);
-            return;
+            var barber = BarberMatcher.Match(ctx.Text, ctx.Barbers);
+            var rest = barber.Matched is null ? ctx.Text : ctx.Text.Replace(barber.Matched, " ").Trim();
+            if (TryNumber(rest, out var slot) && slot >= 1 && slot <= d.TimeChoices.Count)
+            {
+                d.Time = d.TimeChoices[slot - 1];
+                d.TimeChoices = [];
+                Apply(ctx, Details.Empty with { Barber = barber });
+                await ContinueAsync(ctx, ct);
+                return;
+            }
         }
         var details = Extract(ctx, ctx.Text, allowBareNumber: d.TimeChoices.Count == 0);
         if (!details.Any)
@@ -997,7 +1020,7 @@ public sealed partial class ConversationEngine(
             ConversationState.CollectingBookingTime => ctx.Draft.TimeChoices.Count > 0
                 ? "Reply with the number of the slot you'd like, or tell me another date."
                 : $"What time would you like? We take appointments on the hour from {Format.Time(s.OpeningTime)}, last one at {last}.",
-            ConversationState.SelectingBarber => "Reply with the number of the barber you'd like, or *1* for the first available.",
+            ConversationState.SelectingBarber => "Who would you like to book with? Reply with the number of the barber, or *1* for the first available.",
             ConversationState.OfferingAlternatives => "Reply with the number of the option you'd like, or tell me another day or time.",
             ConversationState.CollectingCustomerName => "What name should I put the booking under?",
             ConversationState.AwaitingBookingConfirmation => "Please reply *yes* to confirm or *no* to choose another time.",

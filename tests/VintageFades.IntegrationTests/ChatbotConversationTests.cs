@@ -35,13 +35,19 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Menu_number_starts_booking()
     {
         await Say("hi");
+        Assert.Contains("Who would you like to book with?", await Say("1"));
         Assert.Contains("What date would you like to come in?", await Say("1"));
     }
 
     [Fact]
     public async Task Full_booking_conversation_confirms_only_after_database_commit()
     {
-        Assert.Contains("What date would you like to come in?", await Say("Hi, I need a haircut."));
+        var ask = await Say("Hi, I need a haircut.");
+        Assert.Contains("Who would you like to book with?", ask);
+        Assert.Contains("1. First available", ask);
+        Assert.Contains("2. Kapza", ask);
+        Assert.Contains("5. Tevohn", ask);
+        Assert.Contains("What date would you like to come in?", await Say("1"));
 
         var slots = await Say("Tomorrow.");
         Assert.Contains("Here are the open slots on Tuesday, 3 November:", slots);
@@ -49,11 +55,8 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
         Assert.Contains("10. 18:00 – 19:00", slots);
         Assert.Contains("Reply with the number of the slot you'd like.", slots);
 
-        Assert.Contains("Want a particular barber? Type their name: Kapza, Luther, Godwin, Tevohn.", slots);
-
-        // The customer picks a slot by its number: 6 is 14:00 – 15:00, not 06:00. No barber question: first free barber.
+        // The customer picks a slot by its number: 6 is 14:00 – 15:00, not 06:00.
         var held = await Say("6");
-        Assert.DoesNotContain("specific barber", held);
         Assert.Contains("14:00 on Tuesday, 3 November with Kapza is available", held);
         Assert.Contains("What name should I put the booking under?", held);
         Assert.Equal(BookingStatus.Pending, (await App.Db(db => db.Bookings.SingleAsync())).Status);
@@ -109,6 +112,7 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Bare_hour_with_one_sensible_reading_is_used()
     {
         await Say("Can I book tomorrow?");
+        await Say("1");
         Assert.Contains("with Kapza is available", await Say("2")); // slot 2 is 10:00 – 11:00
     }
 
@@ -116,7 +120,7 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Barber_can_be_named_while_choosing_a_slot_or_confirming()
     {
         await Say("Can I book tomorrow?");
-        var luther = await Say("Luther");
+        var luther = await Say("3"); // barber list: 1 first available, 2 Kapza, 3 Luther
         Assert.Contains("Here are the open slots on Tuesday, 3 November with Luther:", luther);
         await Say("1");
         await Say("Ana");
@@ -125,12 +129,22 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     }
 
     [Fact]
+    public async Task Slot_number_and_barber_name_in_one_message_are_both_used()
+    {
+        await Say("Can I book tomorrow?");
+        await Say("1");
+        var reply = await Say("9 Luther");
+        Assert.Contains("17:00 on Tuesday, 3 November with Luther is available", reply);
+        Assert.Contains("What name", reply);
+    }
+
+    [Fact]
     public async Task Hi_in_the_middle_of_a_booking_continues_it_and_restart_starts_over()
     {
         await Say("Can I book tomorrow?");
         var hi = await Say("hi");
         Assert.Contains("Let's pick up where we left off.", hi);
-        Assert.Contains("Reply with the number of the slot", hi);
+        Assert.Contains("Who would you like to book with?", hi);
         Assert.DoesNotContain("didn't quite get that", hi);
 
         await Say("1");
@@ -144,6 +158,7 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Quiet_customer_is_asked_to_continue_and_a_yes_resumes_without_confirming_anything()
     {
         await Say("Book me tomorrow at 14:00");
+        await Say("1");
         await Say("Sam"); // now waiting on the confirmation
         Assert.Equal(BookingStatus.Pending, (await App.Db(db => db.Bookings.SingleAsync())).Status);
 
@@ -170,6 +185,7 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Customer_who_ignores_the_question_has_the_session_reset_and_the_hold_released()
     {
         await Say("Book me tomorrow at 14:00");
+        await Say("1");
         await Say("Sam");
 
         App.Time.Advance(TimeSpan.FromMinutes(11));
@@ -201,6 +217,7 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Price_hours_and_location_questions_are_answered_and_the_booking_continues()
     {
         await Say("Can I book tomorrow?");
+        await Say("1");
         var reply = await Say("how much is a taper with go black");
         Assert.Contains("Haircut (adults): N$150", reply);
         Assert.Contains("Haircut + full black: N$250", reply);
@@ -220,14 +237,15 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
         await Say("qwerty");
         Assert.Contains("Would you like me to notify someone", await Say("asdfgh"));
         var reply = await Say("no i want to book a haircut");
-        Assert.Contains("What date would you like to come in?", reply);
+        Assert.Contains("Who would you like to book with?", reply);
         Assert.DoesNotContain("let's keep going", reply);
     }
 
     [Fact]
     public async Task Ambiguous_next_weekday_is_confirmed_before_use()
     {
-        var reply = await Say("I need a slot next friday");
+        Assert.Contains("Who would you like to book with?", await Say("I need a slot next friday"));
+        var reply = await Say("1");
         Assert.Contains("do you mean Friday, 6 November or Friday, 13 November?", reply);
         Assert.Contains("Here are the open slots on Friday, 13 November:", await Say("2"));
     }
@@ -235,7 +253,8 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     [Fact]
     public async Task Next_week_asks_which_day()
     {
-        var reply = await Say("can i come in next week");
+        await Say("can i come in next week");
+        var reply = await Say("1");
         Assert.Contains("Which day next week works for you?", reply);
         Assert.Contains("1. Monday, 9 November", reply);
     }
@@ -256,7 +275,8 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
                 });
             return await db.SaveChangesAsync();
         });
-        var reply = await Say("Are you free tomorrow?");
+        await Say("Are you free tomorrow?");
+        var reply = await Say("1");
         Assert.Contains("Here are the open slots on Tuesday, 3 November:", reply);
         Assert.Contains("1. 10:00 – 11:00", reply);
         Assert.DoesNotContain("09:00 –", reply);
@@ -287,7 +307,8 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     {
         await FillDayAsync(new DateOnly(2026, 11, 3));
 
-        var reply = await Say("Book me tomorrow");
+        await Say("Book me tomorrow");
+        var reply = await Say("1");
         Assert.Contains("We're fully booked on Tuesday, 3 November.", reply);
         Assert.Contains("These dates still have open slots:", reply);
         Assert.Contains("1. Wednesday, 4 November", reply);
@@ -325,7 +346,8 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
             Assert.Contains("is confirmed", await Say("yes", sender));
         }
 
-        var reply = await Say("Can I get a haircut at 14:00 tomorrow?");
+        await Say("Can I get a haircut at 14:00 tomorrow?");
+        var reply = await Say("1");
         Assert.Contains("Unfortunately, all our barbers are booked for 14:00 on Tuesday, 3 November.", reply);
         Assert.Contains("Here are the open slots on Tuesday, 3 November:", reply);
         Assert.Contains("13:00 – 14:00", reply);
@@ -484,7 +506,7 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     [Fact]
     public async Task Past_dates_and_closed_hours_are_explained()
     {
-        Assert.Contains("That date has already passed.", await Say("book me on 1 november at 10:00"));
+        Assert.Contains("That date has already passed.", await Say("book me on 1 november at 10:00, anyone"));
         Assert.Contains("the last appointment starts at 18:00", await Say("tomorrow at 20:00"));
         Assert.Contains("Our appointments start on the hour", await Say("tomorrow at 14:30"));
     }
