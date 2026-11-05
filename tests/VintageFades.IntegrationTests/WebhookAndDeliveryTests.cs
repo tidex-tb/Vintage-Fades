@@ -59,7 +59,7 @@ public class WebhookAndDeliveryTests(TestApp app) : IntegrationTest(app)
     public async Task Same_message_in_a_different_delivery_does_not_book_twice()
     {
         const string sender = "264811234001";
-        await App.SendAsync(Platform.WhatsApp, sender, "Book me with Barber 1 tomorrow at 10:00");
+        await App.SendAsync(Platform.WhatsApp, sender, "Book me with Kapza tomorrow at 10:00");
         await App.SendAsync(Platform.WhatsApp, sender, "Kim");
         var yes = App.BuildPayload(Platform.WhatsApp, sender, "yes");
         await App.PostWebhookAsync(Platform.WhatsApp, yes);
@@ -163,7 +163,7 @@ public class WebhookAndDeliveryTests(TestApp app) : IntegrationTest(app)
     public async Task Reminders_are_sent_once_and_respect_the_messaging_window()
     {
         const string sender = "264811234003";
-        await App.SendAsync(Platform.WhatsApp, sender, "Book me with Barber 1 tomorrow at 14:00");
+        await App.SendAsync(Platform.WhatsApp, sender, "Book me with Kapza tomorrow at 14:00");
         await App.SendAsync(Platform.WhatsApp, sender, "Lee");
         await App.SendAsync(Platform.WhatsApp, sender, "yes");
 
@@ -188,7 +188,7 @@ public class WebhookAndDeliveryTests(TestApp app) : IntegrationTest(app)
     public async Task Cancelled_bookings_get_no_reminder()
     {
         const string sender = "264811234004";
-        await App.SendAsync(Platform.WhatsApp, sender, "Book me with Barber 1 tomorrow at 14:00");
+        await App.SendAsync(Platform.WhatsApp, sender, "Book me with Kapza tomorrow at 14:00");
         await App.SendAsync(Platform.WhatsApp, sender, "Lee");
         await App.SendAsync(Platform.WhatsApp, sender, "yes");
         App.Time.SetUtcNow(new DateTimeOffset(2026, 11, 2, 12, 1, 0, TimeSpan.Zero));

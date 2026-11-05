@@ -146,13 +146,24 @@ public sealed class InboundMessageHandler(
             conversation.LastMessageAtUtc = now;
             conversation.UpdatedAtUtc = now;
 
-            if (conversation.CurrentState != ConversationState.HumanSupportRequested)
+            var minutes = chatbotOptions.Value.ManualReplyPauseMinutes;
+            var resumeAt = now.AddMinutes(minutes);
+            if (conversation.CurrentState == ConversationState.HumanSupportRequested)
+            {
+                // Already handed over: each reply from the shop keeps the bot quiet a little longer.
+                var draft = BookingDraft.Deserialize(conversation.CurrentBookingIntent);
+                if (draft.AutoResumeAtUtc is { } current && current < resumeAt)
+                {
+                    draft.AutoResumeAtUtc = resumeAt;
+                    conversation.CurrentBookingIntent = draft.Serialize();
+                }
+            }
+            else
             {
                 if (BookingDraft.Deserialize(conversation.CurrentBookingIntent).HeldBookingId is long holdId)
                     await bookings.ReleaseHoldAsync(holdId, ct);
-                var minutes = chatbotOptions.Value.ManualReplyPauseMinutes;
                 conversation.CurrentState = ConversationState.HumanSupportRequested;
-                conversation.CurrentBookingIntent = new BookingDraft { AutoResumeAtUtc = now.AddMinutes(minutes) }.Serialize();
+                conversation.CurrentBookingIntent = new BookingDraft { AutoResumeAtUtc = resumeAt }.Serialize();
                 await notifications.EnqueueOwnerNotificationAsync(NotificationTypes.HumanAssistance,
                     "BOT PAUSED – VINTAGE FADES\n" +
                     $"You replied to {conversation.Customer?.FullName ?? conversation.Customer?.PhoneNumber ?? "a customer"} in the WhatsApp Business app, " +

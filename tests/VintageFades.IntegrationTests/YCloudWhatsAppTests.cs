@@ -119,7 +119,7 @@ public class YCloudWhatsAppTests(YCloudTestApp app) : IntegrationTest(app)
     [Fact]
     public async Task Full_booking_and_owner_notification_work_through_ycloud()
     {
-        await YApp.SayAsync(Customer, "Book me with Barber 2 tomorrow at 15:00");
+        await YApp.SayAsync(Customer, "Book me with Luther tomorrow at 15:00");
         await YApp.SayAsync(Customer, "John");
         var done = string.Join("\n", await YApp.SayAsync(Customer, "yes"));
         Assert.Contains("is confirmed", done);
@@ -149,7 +149,7 @@ public class YCloudWhatsAppTests(YCloudTestApp app) : IntegrationTest(app)
     [Fact]
     public async Task Owner_reply_from_business_app_pauses_the_bot_then_it_resumes()
     {
-        await YApp.SayAsync(Customer, "Book me with Barber 1 tomorrow at 10:00"); // creates a hold
+        await YApp.SayAsync(Customer, "Book me with Kapza tomorrow at 10:00"); // creates a hold
         var echo = YApp.Event("whatsapp.smb.message.echoes", "whatsappMessage", new JsonObject
         {
             ["id"] = "smb_1", ["wamid"] = "wamid.smb1", ["from"] = YCloudTestApp.ShopNumber, ["to"] = Customer,
