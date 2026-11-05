@@ -103,7 +103,8 @@ public sealed class OutboxWorker(IServiceScopeFactory scopes, IWorkSignal signal
         services.GetRequiredService<OutboxDispatcher>().DispatchDueAsync(ct);
 }
 
-/// <summary>Every minute: release expired holds, queue reminders, check for stalled processing. Daily: retention purge.</summary>
+/// <summary>Every minute: release expired holds, queue reminders, check on idle customers, check for stalled processing.
+/// Daily: retention purge.</summary>
 public sealed class SchedulerWorker(IServiceScopeFactory scopes, IWorkSignal signal, WorkerHeartbeat heartbeat, TimeProvider time, ILogger<SchedulerWorker> logger)
     : QueueWorker(scopes, signal, heartbeat, logger)
 {
@@ -116,6 +117,7 @@ public sealed class SchedulerWorker(IServiceScopeFactory scopes, IWorkSignal sig
     {
         await services.GetRequiredService<BookingService>().ReleaseExpiredHoldsAsync(ct);
         var reminders = await services.GetRequiredService<ReminderScheduler>().EnqueueDueRemindersAsync(ct);
+        reminders += await services.GetRequiredService<IdleConversationService>().ProcessAsync(ct);
         await services.GetRequiredService<OperationalMonitor>().CheckAsync(ct);
         if (time.GetUtcNow() - _lastPurge > TimeSpan.FromDays(1))
         {

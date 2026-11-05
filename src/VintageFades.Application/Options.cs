@@ -19,6 +19,10 @@ public sealed class ChatbotOptions
     /// <summary>An unfinished conversation older than this restarts from the menu.</summary>
     public int ConversationResetHours { get; set; } = 24;
     public int ClarificationAttemptsBeforeHumanOffer { get; set; } = 2;
+    /// <summary>A customer who goes quiet in the middle of a booking is asked whether they want to continue after this long.</summary>
+    public int IdleCheckMinutes { get; set; } = 10;
+    /// <summary>If they still do not answer the question after this long, the booking session is reset.</summary>
+    public int IdleResetMinutes { get; set; } = 10;
     /// <summary>When a customer asks for a person, or the shop replies from the WhatsApp Business app (Coexistence),
     /// the bot stays quiet in that chat this long; each further reply from the shop extends the pause.</summary>
     public int ManualReplyPauseMinutes { get; set; } = 10;
