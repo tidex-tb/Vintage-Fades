@@ -50,7 +50,8 @@ public sealed record InboundMessage(
 
 public sealed record DeliveryStatusUpdate(Platform Platform, string ProviderMessageId, string Status, string? Error);
 
-/// <summary>A message the shop typed itself in the WhatsApp Business app on a Coexistence number.</summary>
+/// <summary>A message the shop typed itself: in the WhatsApp Business app on a Coexistence number, or in the
+/// Facebook Page / Instagram inbox.</summary>
 public sealed record BusinessAppReply(Platform Platform, string CustomerId, string MessageId, DateTime TimestampUtc, string? Text);
 
 public sealed record WebhookParseResult(

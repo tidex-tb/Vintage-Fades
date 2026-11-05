@@ -141,12 +141,28 @@ public class WebhookParserTests
           {"sender":{"id":"PSID"},"recipient":{"id":"PAGE"},"timestamp":1793000000003,"postback":{"title":"Get Started","payload":"hi"}}
         ]}]}
         """;
-        var result = new MessengerWebhookParser(Opt(new FacebookOptions { PageId = "PAGE" })).Parse(json);
-        Assert.Equal(4, result.Messages.Count);
+        var result = new MessengerWebhookParser(Opt(new FacebookOptions { PageId = "PAGE" }), Opt(new MetaOptions { AppId = "APP" })).Parse(json);
+        Assert.Equal(3, result.Messages.Count);
         Assert.All(result.Messages, m => Assert.Equal(Platform.Messenger, m.Platform));
         Assert.Equal("yes", result.Messages[1].ReplyPayload);
-        Assert.True(result.Messages[2].IsEcho);
-        Assert.Equal("hi", result.Messages[3].ReplyPayload);
+        Assert.Equal("hi", result.Messages[2].ReplyPayload);
+
+        // An echo without our app id is a person typing in the Page inbox: it becomes a handover signal for that customer.
+        var reply = Assert.Single(result.BusinessReplies);
+        Assert.Equal(("PSID", "m_3", "echo"), (reply.CustomerId, reply.MessageId, reply.Text));
+    }
+
+    [Fact]
+    public void Echoes_of_this_apps_own_replies_are_not_handovers()
+    {
+        const string json = """
+        {"object":"page","entry":[{"id":"PAGE","time":1,"messaging":[
+          {"sender":{"id":"PAGE"},"recipient":{"id":"PSID"},"timestamp":1793000000002,"message":{"mid":"m_4","text":"ours","is_echo":true,"app_id":1137479508653566}}
+        ]}]}
+        """;
+        var result = new MessengerWebhookParser(Opt(new FacebookOptions { PageId = "PAGE" }), Opt(new MetaOptions { AppId = "1137479508653566" })).Parse(json);
+        Assert.Empty(result.Messages);
+        Assert.Empty(result.BusinessReplies);
     }
 
     [Fact]
@@ -156,11 +172,11 @@ public class WebhookParserTests
         {"object":"instagram","entry":[{"id":"IGID","time":1,"messaging":[
           {"sender":{"id":"IGSID"},"recipient":{"id":"IGID"},"timestamp":1793000000000,"message":{"mid":"ig_1","text":"hello"}}]}]}
         """;
-        var parser = new InstagramWebhookParser(Opt(new InstagramOptions { AccountId = "IGID" }));
+        var parser = new InstagramWebhookParser(Opt(new InstagramOptions { AccountId = "IGID" }), Opt(new MetaOptions()));
         var message = Assert.Single(parser.Parse(json).Messages);
         Assert.Equal(Platform.Instagram, message.Platform);
         Assert.Equal("IGSID", message.SenderId);
-        Assert.Empty(new MessengerWebhookParser(Opt(new FacebookOptions())).Parse(json).Messages);
+        Assert.Empty(new MessengerWebhookParser(Opt(new FacebookOptions()), Opt(new MetaOptions())).Parse(json).Messages);
     }
 
     [Fact]
@@ -171,7 +187,7 @@ public class WebhookParserTests
           {"sender":{"id":"IGSID"},"recipient":{"id":"IGID"},"timestamp":1793000000000,"message":{"mid":"ig_1","text":"hello"}}]}]}
         """;
         Assert.True(new InstagramOptions { AccessToken = "page-token" }.IsConfigured);
-        Assert.Single(new InstagramWebhookParser(Opt(new InstagramOptions())).Parse(json).Messages);
-        Assert.Empty(new InstagramWebhookParser(Opt(new InstagramOptions { AccountId = "OTHER" })).Parse(json).Messages);
+        Assert.Single(new InstagramWebhookParser(Opt(new InstagramOptions()), Opt(new MetaOptions())).Parse(json).Messages);
+        Assert.Empty(new InstagramWebhookParser(Opt(new InstagramOptions { AccountId = "OTHER" }), Opt(new MetaOptions())).Parse(json).Messages);
     }
 }

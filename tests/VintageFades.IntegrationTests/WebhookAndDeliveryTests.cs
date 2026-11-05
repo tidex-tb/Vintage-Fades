@@ -103,6 +103,33 @@ public class WebhookAndDeliveryTests(TestApp app) : IntegrationTest(app)
         Assert.Equal(0, await App.Db(db => db.Conversations.CountAsync()));
     }
 
+    [Theory]
+    [InlineData(Platform.Messenger)]
+    [InlineData(Platform.Instagram)]
+    public async Task A_person_replying_in_the_inbox_pauses_the_bot_but_its_own_replies_and_automations_do_not(Platform platform)
+    {
+        const string customer = "cust-77";
+        Assert.NotEmpty(await App.SendAsync(platform, customer, "hi"));
+        var after = App.Meta.Requests.Count;
+
+        // The bot's own reply echoed back (app_id is this app) and Meta's ad greeting: nobody has taken over.
+        await App.PostWebhookAsync(platform, App.BuildEchoPayload(platform, customer, "Welcome to VINTAGE FADES", TestApp.AppId));
+        await App.PostWebhookAsync(platform, App.BuildEchoPayload(platform, customer, "Hi! Are you looking for a good Barber? I think you might've landed in the right place"));
+        await App.ProcessAsync();
+        Assert.NotEqual(ConversationState.HumanSupportRequested, (await App.Db(db => db.Conversations.SingleAsync())).CurrentState);
+        Assert.NotEmpty(await App.SendAsync(platform, customer, "1"));
+
+        // A person typing in the inbox: the bot pauses and the owner is told.
+        await App.PostWebhookAsync(platform, App.BuildEchoPayload(platform, customer, "Hi, Peter here, I'll sort you out."));
+        await App.ProcessAsync();
+        Assert.Equal(ConversationState.HumanSupportRequested, (await App.Db(db => db.Conversations.SingleAsync())).CurrentState);
+        Assert.Contains(App.Meta.To(TestApp.OwnerNumber), r => r.Text.Contains("BOT PAUSED") && r.Text.Contains(platform.DisplayName()));
+        Assert.Empty(await App.SendAsync(platform, customer, "hello?"));
+
+        App.Time.Advance(TimeSpan.FromMinutes(11));
+        Assert.NotEmpty(await App.SendAsync(platform, customer, "hi"));
+    }
+
     [Fact]
     public async Task Transient_provider_failure_is_retried_with_backoff()
     {

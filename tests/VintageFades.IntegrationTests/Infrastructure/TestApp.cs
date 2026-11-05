@@ -32,6 +32,7 @@ public sealed class PostgresCollection : ICollectionFixture<TestApp>
 /// </summary>
 public class TestApp : IAsyncLifetime
 {
+    public const string AppId = "1137479508653566";
     public const string AppSecret = "test-app-secret";
     public const string VerifyToken = "test-verify-token";
     public const string OwnerNumber = "264811110000";
@@ -54,6 +55,7 @@ public class TestApp : IAsyncLifetime
         {
             ["ConnectionStrings:DefaultConnection"] = _postgres.GetConnectionString(),
             ["Workers:Enabled"] = "false",
+            ["Meta:AppId"] = AppId,
             ["Meta:AppSecret"] = AppSecret,
             ["Meta:WebhookVerifyToken"] = VerifyToken,
             ["WhatsApp:PhoneNumberId"] = "PNID",
@@ -167,6 +169,33 @@ public class TestApp : IAsyncLifetime
         Platform.Instagram => "instagram",
         _ => "messenger"
     };
+
+    /// <summary>A message the Page / Instagram account sent to <paramref name="customerId"/> (is_echo). With no app id it was typed
+    /// by a person in the inbox; with this app's id it is one of the bot's own replies.</summary>
+    public string BuildEchoPayload(Platform platform, string customerId, string text, string? appId = null)
+    {
+        var id = Interlocked.Increment(ref _messageCounter);
+        var ts = Time.GetUtcNow();
+        var account = platform == Platform.Instagram ? "IGID" : "PAGEID";
+        var msg = new JsonObject { ["mid"] = $"mid.echo{id}", ["text"] = text, ["is_echo"] = true };
+        if (appId is not null) msg["app_id"] = long.Parse(appId);
+        return new JsonObject
+        {
+            ["object"] = platform == Platform.Instagram ? "instagram" : "page",
+            ["entry"] = new JsonArray(new JsonObject
+            {
+                ["id"] = account,
+                ["time"] = ts.ToUnixTimeMilliseconds(),
+                ["messaging"] = new JsonArray(new JsonObject
+                {
+                    ["sender"] = new JsonObject { ["id"] = account },
+                    ["recipient"] = new JsonObject { ["id"] = customerId },
+                    ["timestamp"] = ts.ToUnixTimeMilliseconds(),
+                    ["message"] = msg
+                })
+            })
+        }.ToJsonString();
+    }
 
     public string BuildPayload(Platform platform, string senderId, string text, string? replyPayload = null)
     {
