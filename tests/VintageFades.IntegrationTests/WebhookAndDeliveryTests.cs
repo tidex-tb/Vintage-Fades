@@ -130,6 +130,28 @@ public class WebhookAndDeliveryTests(TestApp app) : IntegrationTest(app)
         Assert.NotEmpty(await App.SendAsync(platform, customer, "hi"));
     }
 
+    [Theory]
+    [InlineData(Platform.Messenger)]
+    [InlineData(Platform.Instagram)]
+    public async Task Each_further_reply_from_a_person_extends_the_pause_by_another_ten_minutes(Platform platform)
+    {
+        const string customer = "cust-88";
+        await App.SendAsync(platform, customer, "hi");
+
+        await App.PostWebhookAsync(platform, App.BuildEchoPayload(platform, customer, "First reply from the shop"));
+        await App.ProcessAsync();
+
+        App.Time.Advance(TimeSpan.FromMinutes(6));
+        await App.PostWebhookAsync(platform, App.BuildEchoPayload(platform, customer, "Second reply from the shop"));
+        await App.ProcessAsync();
+
+        App.Time.Advance(TimeSpan.FromMinutes(6)); // 12 minutes after the first reply, 6 after the second
+        Assert.Empty(await App.SendAsync(platform, customer, "still there?"));
+
+        App.Time.Advance(TimeSpan.FromMinutes(5)); // 11 minutes after the second reply
+        Assert.NotEmpty(await App.SendAsync(platform, customer, "hi"));
+    }
+
     [Fact]
     public async Task Transient_provider_failure_is_retried_with_backoff()
     {
