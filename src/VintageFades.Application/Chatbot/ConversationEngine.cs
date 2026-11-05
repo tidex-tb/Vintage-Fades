@@ -349,8 +349,7 @@ public sealed partial class ConversationEngine(
             d.ResolvedBarberId = result.Booking.BarberId;
             if (string.IsNullOrWhiteSpace(ctx.Customer.FullName))
             {
-                ctx.Reply($"Good news, {Format.Time(d.Time.Value)} on {Format.DateShort(d.Date.Value)} with {ctx.BarberName(result.Booking.BarberId)} is available! " +
-                          $"I'm holding it for you for {_booking.PendingHoldMinutes} minutes.\n\nWhat name should I put the booking under?");
+                ctx.Reply($"Good news, {Format.Time(d.Time.Value)} on {Format.DateShort(d.Date.Value)} with {ctx.BarberName(result.Booking.BarberId)} is available!\n\nWhat name should I put the booking under?");
                 ctx.State = ConversationState.CollectingCustomerName;
                 return;
             }

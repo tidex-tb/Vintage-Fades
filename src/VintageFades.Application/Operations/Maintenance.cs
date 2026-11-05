@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using VintageFades.Application.Abstractions;
-using VintageFades.Application.Abstractions;
 using VintageFades.Application.Bookings;
 using VintageFades.Application.Chatbot;
 using VintageFades.Application.Messaging;
