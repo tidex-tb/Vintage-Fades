@@ -31,12 +31,15 @@ public sealed class BookingDraft
     public bool DateIsPeriod { get; set; }
     public List<DateOnly> DateCandidates { get; set; } = [];
     public List<TimeOnly> TimeCandidates { get; set; } = [];
+    /// <summary>Open slots last listed for the chosen date; the customer picks one by its number.</summary>
+    public List<TimeOnly> TimeChoices { get; set; } = [];
     public List<DraftOffer> Offers { get; set; } = [];
     public List<int> BarberChoices { get; set; } = [];
     public List<long> BookingChoices { get; set; } = [];
     public int ClarificationAttempts { get; set; }
     public ConversationState? ResumeState { get; set; }
-    /// <summary>Set when the bot paused because the shop replied from the WhatsApp Business app; the bot resumes after this time.</summary>
+    /// <summary>Set when the bot paused for a person (customer asked, or the shop replied from the WhatsApp Business app);
+    /// the bot resumes after this time.</summary>
     public DateTime? AutoResumeAtUtc { get; set; }
 
     public string Serialize() => JsonSerializer.Serialize(this, Json);

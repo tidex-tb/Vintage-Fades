@@ -34,8 +34,8 @@ public sealed partial class ConversationEngine(
     {
         var conversation = turn.Conversation;
         var now = time.GetUtcNow().UtcDateTime;
-        // Human handover: stay silent until the owner hands the conversation back. A pause caused only by the shop
-        // replying from the WhatsApp Business app ends by itself after ManualReplyPauseMinutes.
+        // Human handover (the customer asked for a person, or the shop replied from the WhatsApp Business app):
+        // stay silent until the owner sends RESUME or the pause of ManualReplyPauseMinutes runs out.
         if (conversation.CurrentState == ConversationState.HumanSupportRequested)
         {
             if (BookingDraft.Deserialize(conversation.CurrentBookingIntent).AutoResumeAtUtc is not { } resumeAt || now < resumeAt)
@@ -335,6 +335,7 @@ public sealed partial class ConversationEngine(
         ctx.State = ConversationState.AwaitingBookingConfirmation;
     }
 
+    /// <summary>Lists the open slots on the chosen date as a numbered list; a fully booked date offers other dates instead.</summary>
     private async Task AskTimeAsync(TurnContext ctx, CancellationToken ct)
     {
         var d = ctx.Draft;
@@ -347,16 +348,57 @@ public sealed partial class ConversationEngine(
         {
             var who = barberId is null ? "We're" : $"{ctx.BarberName(barberId.Value)} is";
             var reason = date == ctx.Calendar.Today(ctx.Now) ? $"{who} fully booked for the rest of today." : $"{who} fully booked on {Format.DateShort(date)}.";
-            await OfferAlternativesAsync(ctx, reason, ct, startTime: ctx.Calendar.Settings.OpeningTime);
+            await OfferDatesAsync(ctx, reason, ct);
             return;
         }
 
-        var settings = ctx.Calendar.Settings;
-        ctx.Reply($"{(ctx.HasNotes ? "" : "Perfect. ")}What time would you prefer on {Format.DateShort(date)}?\n" +
-                  $"We operate from {Format.Time(settings.OpeningTime)} to {Format.Time(settings.ClosingTime)}, with one-hour appointments.\n\n" +
-                  $"Available: {string.Join(", ", times.Select(Format.Time))}",
-            times.Take(10).Select(t => new ReplyOption(Format.Time(t), Format.Time(t))).ToList());
+        d.Time = null;
+        d.TimeCandidates = [];
+        d.TimeChoices = times;
+        var duration = ctx.Calendar.Settings.AppointmentDurationMinutes;
+        var withBarber = barberId is null ? "" : $" with {ctx.BarberName(barberId.Value)}";
+        var text = new StringBuilder($"{(ctx.HasNotes ? "" : "Perfect. ")}Here are the open slots on {Format.DateShort(date)}{withBarber}:\n");
+        var options = new List<ReplyOption>();
+        for (var i = 0; i < times.Count; i++)
+        {
+            var slot = $"{Format.Time(times[i])} – {Format.Time(times[i].AddMinutes(duration))}";
+            text.Append($"\n{i + 1}. {slot}");
+            options.Add(new((i + 1).ToString(), slot));
+        }
+        text.Append("\n\nReply with the number of the slot you'd like.");
+        ctx.Reply(text.ToString(), options.Count <= 10 ? options : null);
         ctx.State = ConversationState.CollectingBookingTime;
+    }
+
+    /// <summary>The requested date has no free slot: offer the next dates that still have one.</summary>
+    private async Task OfferDatesAsync(TurnContext ctx, string reason, CancellationToken ct)
+    {
+        var d = ctx.Draft;
+        var barberId = d.BarberMode == BarberPreferenceKind.Specific ? d.BarberId : null;
+        var lastDate = ctx.Calendar.LastBookableDate(ctx.Now);
+        var dates = new List<DateOnly>();
+        for (var day = d.Date!.Value.AddDays(1); day <= lastDate && dates.Count < _booking.MaxAlternatives; day = day.AddDays(1))
+        {
+            if ((await bookings.GetAvailableSlotsAsync(day, barberId, ctx.IgnoreBookingId, ct)).Count > 0) dates.Add(day);
+        }
+
+        d.Date = null;
+        d.Time = null;
+        d.TimeChoices = [];
+        ctx.State = ConversationState.CollectingBookingDate;
+        if (dates.Count == 0)
+        {
+            d.DateCandidates = [];
+            ctx.Reply($"{reason}\nSorry, we're fully booked for the coming weeks. Would you like to try another date?");
+            return;
+        }
+
+        d.DateCandidates = dates;
+        d.DateIsPeriod = false;
+        var text = new StringBuilder(reason).Append("\nThese dates still have open slots:\n");
+        for (var i = 0; i < dates.Count; i++) text.Append($"\n{i + 1}. {Format.DateShort(dates[i])}");
+        text.Append("\n\nReply with the number of the date you'd like, or tell me another date.");
+        ctx.Reply(text.ToString(), dates.Select((date, i) => new ReplyOption((i + 1).ToString(), Format.DateShort(date))).ToList());
     }
 
     private async Task OfferOtherBarbersAsync(TurnContext ctx, SlotStatus status, CancellationToken ct)
@@ -384,22 +426,12 @@ public sealed partial class ConversationEngine(
         PresentOffers(ctx, reason, offers);
     }
 
-    private async Task OfferAlternativesAsync(TurnContext ctx, string reason, CancellationToken ct, TimeOnly? startTime = null)
+    /// <summary>The chosen time can't be booked: explain why and list the open slots on that date (or other dates).</summary>
+    private async Task OfferAlternativesAsync(TurnContext ctx, string reason, CancellationToken ct)
     {
-        var d = ctx.Draft;
-        var preferred = d.BarberMode == BarberPreferenceKind.Specific ? d.BarberId : null;
-        var alternatives = await bookings.GetAlternativeSlotsAsync(
-            d.Date!.Value, startTime ?? d.Time ?? ctx.Calendar.Settings.OpeningTime, preferred, ctx.IgnoreBookingId, _booking.MaxAlternatives, ct);
-
-        if (alternatives.Count == 0)
-        {
-            d.Date = null;
-            d.Time = null;
-            ctx.Reply($"{reason}\nSorry, we're fully booked for the next few days. Would you like to try another date?");
-            ctx.State = ConversationState.CollectingBookingDate;
-            return;
-        }
-        PresentOffers(ctx, reason, alternatives);
+        ctx.Note(reason);
+        ctx.Draft.Time = null;
+        await AskTimeAsync(ctx, ct);
     }
 
     private void PresentOffers(TurnContext ctx, string reason, IReadOnlyList<SlotOption> offers)
@@ -434,6 +466,7 @@ public sealed partial class ConversationEngine(
     private void AskTimeClarification(TurnContext ctx)
     {
         var d = ctx.Draft;
+        d.TimeChoices = [];
         ctx.Reply($"Just to check, did you mean {string.Join(" or ", d.TimeCandidates.Select(Format.Time))}?",
             d.TimeCandidates.Select(t => new ReplyOption(Format.Time(t), Format.Time(t))).ToList());
         ctx.State = ConversationState.CollectingBookingTime;
@@ -468,7 +501,15 @@ public sealed partial class ConversationEngine(
             await ContinueAsync(ctx, ct);
             return;
         }
-        var details = Extract(ctx, ctx.Text, allowBareNumber: true);
+        // A bare number picks from the numbered slot list ("2" is the second slot, not 02:00).
+        if (d.TimeChoices.Count > 0 && TryNumber(ctx.Text, out var slot) && slot >= 1 && slot <= d.TimeChoices.Count)
+        {
+            d.Time = d.TimeChoices[slot - 1];
+            d.TimeChoices = [];
+            await ContinueAsync(ctx, ct);
+            return;
+        }
+        var details = Extract(ctx, ctx.Text, allowBareNumber: d.TimeChoices.Count == 0);
         if (!details.Any)
         {
             if (ctx.Intent.HasFlag(Intent.No)) { await ResetAsync(ctx, ct); ShowMenu(ctx, welcome: false); return; }
@@ -560,10 +601,10 @@ public sealed partial class ConversationEngine(
         {
             await ReleaseHoldAsync(ctx, ct);
             d.Time = null;
-            ctx.Reply(d.Intent == DraftIntent.Reschedule
-                ? "No problem, your appointment stays as it is. Would you like a different time? Tell me the day or time, or type *menu* to start over."
-                : "No problem, I haven't booked anything and I've released that slot. Would you like a different time? Tell me the day or time, or type *menu* to start over.");
-            ctx.State = ConversationState.CollectingBookingTime;
+            ctx.Note(d.Intent == DraftIntent.Reschedule
+                ? "No problem, your appointment stays as it is. Pick another slot, tell me another date, or type *menu* to start over."
+                : "No problem, I haven't booked anything and I've released that slot. Pick another slot, tell me another date, or type *menu* to start over.");
+            await AskTimeAsync(ctx, ct);
             return;
         }
         var details = Extract(ctx, ctx.Text, allowBareNumber: false);
@@ -856,6 +897,8 @@ public sealed partial class ConversationEngine(
     {
         ctx.Conversation.RequiresAttention = true;
         ctx.State = ConversationState.HumanSupportRequested;
+        var minutes = _chatbot.ManualReplyPauseMinutes;
+        ctx.Draft = new BookingDraft { AutoResumeAtUtc = ctx.Now.AddMinutes(minutes) };
         var conversationId = ctx.Conversation.Id;
         var contact = ctx.Customer.PhoneNumber is null ? "" : $"\nPhone: {ctx.Customer.PhoneNumber}";
         await notifications.EnqueueOwnerNotificationAsync(NotificationTypes.HumanAssistance,
@@ -864,7 +907,8 @@ public sealed partial class ConversationEngine(
             $"Platform: {ctx.Conversation.Platform.DisplayName()}\n" +
             $"Reason: {reason}\n" +
             $"Conversation: #{conversationId}\n" +
-            $"Please respond to the customer. Reply RESUME {conversationId} to hand the chat back to the bot, or REPLY {conversationId} <message> to answer through the bot.",
+            $"Please respond to the customer. The bot stays quiet in this chat for {minutes} minutes (longer while you keep replying). " +
+            $"Reply RESUME {conversationId} to hand the chat back sooner, or REPLY {conversationId} <message> to answer through the bot.",
             null, ct);
     }
 
@@ -908,7 +952,9 @@ public sealed partial class ConversationEngine(
         return ctx.State switch
         {
             ConversationState.CollectingBookingDate => "What date would you like to come in? You can say things like *tomorrow*, *Friday* or *7 November*.",
-            ConversationState.CollectingBookingTime => $"What time would you like? We take appointments on the hour from {Format.Time(s.OpeningTime)}, last one at {last}.",
+            ConversationState.CollectingBookingTime => ctx.Draft.TimeChoices.Count > 0
+                ? "Reply with the number of the slot you'd like, or tell me another date."
+                : $"What time would you like? We take appointments on the hour from {Format.Time(s.OpeningTime)}, last one at {last}.",
             ConversationState.SelectingBarber => "Reply with the number of the barber you'd like, or *1* for the first available.",
             ConversationState.OfferingAlternatives => "Reply with the number of the option you'd like, or tell me another day or time.",
             ConversationState.CollectingCustomerName => "What name should I put the booking under?",
@@ -1049,6 +1095,7 @@ public sealed partial class ConversationEngine(
             case ParseKind.Exact:
                 d.Time = details.Time.Time;
                 d.TimeCandidates = [];
+                d.TimeChoices = [];
                 break;
             case ParseKind.Ambiguous:
                 d.Time = null;

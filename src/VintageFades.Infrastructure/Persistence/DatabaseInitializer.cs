@@ -42,20 +42,20 @@ public sealed class DatabaseInitializer(AppDbContext db, TimeProvider time, ILog
 
         if (!await db.Barbers.AnyAsync(ct))
         {
-            for (var i = 1; i <= 4; i++)
+            string[] names = ["Kapza", "Luther", "Godwin", "Tevohn"];
+            for (var i = 0; i < names.Length; i++)
             {
                 db.Barbers.Add(new Barber
                 {
-                    FirstName = "Barber",
-                    LastName = i.ToString(),
-                    DisplayName = $"Barber {i}",
-                    StationNumber = i,
+                    FirstName = names[i],
+                    DisplayName = names[i],
+                    StationNumber = i + 1,
                     IsActive = true,
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
                 });
             }
-            logger.LogInformation("Seeded 4 placeholder barbers");
+            logger.LogInformation("Seeded {Count} barbers", names.Length);
         }
         await db.SaveChangesAsync(ct);
 
