@@ -43,7 +43,7 @@ public static partial class IntentRecognizer
     private static partial Regex Thanks();
     [GeneratedRegex(@"\b(restart|re-start|start over|start again|begin again|from the beginning|from scratch|main menu)\b|^(menu|start|options|help|back)$")]
     private static partial Regex Menu();
-    [GeneratedRegex(@"\b(price|prices|pricing|price list|how much|cost|costs|rates?|charge|charges|fees?|hours|opening hours|opening times?|closing times?|what time (?:do|are) you (?:open|close)|when (?:do|are) you (?:open|close)|are you open|where are you|where is the shop|where is your shop|location|located|address|directions|find you)\b")]
+    [GeneratedRegex(@"\b(price|prices|pricing|price list|how much|more info|more information|more details|info on this|information on this|cost|costs|rates?|charge|charges|fees?|hours|opening hours|opening times?|closing times?|what time (?:do|are) you (?:open|close)|when (?:do|are) you (?:open|close)|are you open|where are you|where is the shop|where is your shop|location|located|address|directions|find you)\b")]
     private static partial Regex Info();
 
     public static Intent Recognize(string normalized)

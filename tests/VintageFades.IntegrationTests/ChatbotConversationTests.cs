@@ -227,7 +227,9 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
         Assert.DoesNotContain("didn't quite get that", reply);
 
         Assert.Contains("with Kapza is available", await Say("3"));
-        Assert.Contains("Ready to book?", await Say("where are you located", "264819999999"));
+        var lead = await Say("Hello! Can I get more info on this?", "264819999999"); // Meta's default first message on a click-to-WhatsApp ad
+        Assert.Contains("Haircut (adults): N$150", lead);
+        Assert.Contains("1. Book an appointment", lead);
     }
 
     [Fact]

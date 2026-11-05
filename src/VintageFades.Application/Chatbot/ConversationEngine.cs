@@ -184,8 +184,15 @@ public sealed partial class ConversationEngine(
         if (!string.IsNullOrWhiteSpace(_info.Address)) text.AppendLine($"Find us: {_info.Address}");
         text.AppendLine();
         var midBooking = ctx.State is not (ConversationState.Idle or ConversationState.Greeting or ConversationState.BookingConfirmed or ConversationState.ViewingBookings);
-        text.Append(midBooking ? "Back to your booking: " + StatePrompt(ctx) : "Ready to book? Just tell me a day, for example *tomorrow* or *Friday*.");
-        ctx.Reply(text.ToString());
+        if (midBooking)
+        {
+            text.Append("Back to your booking: " + StatePrompt(ctx));
+            ctx.Reply(text.ToString());
+            return;
+        }
+        // Not in the middle of anything (for example a lead from an ad asking for info): answer, then show the menu.
+        ctx.Reply(text.ToString().TrimEnd());
+        ShowMenu(ctx, welcome: false);
     }
 
     private void ShowMenu(TurnContext ctx, bool welcome)
