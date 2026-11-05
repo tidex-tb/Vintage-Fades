@@ -122,6 +122,14 @@ public sealed class InboundMessageHandler(
     /// </summary>
     public async Task HandleBusinessAppReplyAsync(BusinessAppReply reply, CancellationToken ct)
     {
+        // The app's own greeting or away message is sent automatically when a customer writes: nobody has taken over.
+        if (chatbotOptions.Value.AutomatedMessagePrefixes.Any(p =>
+                !string.IsNullOrWhiteSpace(p) && (reply.Text ?? "").TrimStart().StartsWith(p, StringComparison.OrdinalIgnoreCase)))
+        {
+            logger.LogInformation("Ignored the Business app's automated message {MessageId}", reply.MessageId);
+            return;
+        }
+
         await db.InTransactionAsync(async () =>
         {
             if (await db.ConversationMessages.AnyAsync(m => m.Platform == reply.Platform && m.PlatformMessageId == reply.MessageId, ct))

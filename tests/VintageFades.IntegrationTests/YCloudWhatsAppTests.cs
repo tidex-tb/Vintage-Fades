@@ -171,6 +171,24 @@ public class YCloudWhatsAppTests(YCloudTestApp app) : IntegrationTest(app)
     }
 
     [Fact]
+    public async Task The_business_apps_automatic_greeting_does_not_pause_the_bot()
+    {
+        await YApp.SayAsync(Customer, "hi");
+        var echo = YApp.Event("whatsapp.smb.message.echoes", "whatsappMessage", new JsonObject
+        {
+            ["id"] = "smb_g", ["wamid"] = "wamid.smbg", ["from"] = YCloudTestApp.ShopNumber, ["to"] = Customer,
+            ["type"] = "text", ["text"] = new JsonObject { ["body"] = "Thank you for contacting Vintage Fades Barbershop! Here is some helpful information: ..." },
+            ["status"] = "sent", ["sendTime"] = App.Time.GetUtcNow().ToString("O")
+        });
+        Assert.Equal(HttpStatusCode.OK, (await YApp.PostAsync(echo)).StatusCode);
+        await App.ProcessAsync();
+
+        Assert.NotEqual(ConversationState.HumanSupportRequested, (await App.Db(db => db.Conversations.SingleAsync())).CurrentState);
+        Assert.DoesNotContain(App.Meta.To("+" + TestApp.OwnerNumber), r => r.Text.Contains("BOT PAUSED"));
+        Assert.NotEmpty(await YApp.SayAsync(Customer, "1")); // the bot still answers
+    }
+
+    [Fact]
     public async Task Delivery_status_from_ycloud_is_recorded()
     {
         await YApp.SayAsync(Customer, "hello");
