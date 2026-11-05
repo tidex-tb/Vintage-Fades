@@ -131,8 +131,20 @@ public class IntentRecognizerTests
     [InlineData("nope", Intent.No)]
     [InlineData("show my bookings", Intent.ViewBookings)]
     [InlineData("menu", Intent.Menu)]
+    [InlineData("lets restart", Intent.Menu)]
+    [InlineData("can we start over", Intent.Menu)]
+    [InlineData("how much is a taper with go black", Intent.Info)]
+    [InlineData("what are your prices?", Intent.Info)]
+    [InlineData("what time do you close", Intent.Info)]
+    [InlineData("where are you located", Intent.Info)]
     public void Detects_intent(string text, Intent expected) =>
         Assert.True(IntentRecognizer.Recognize(IntentRecognizer.Normalize(text)).HasFlag(expected));
+
+    [Theory]
+    [InlineData("Are you free tomorrow?")]
+    [InlineData("Can I book at 10?")]
+    public void Availability_questions_are_not_info_questions(string text) =>
+        Assert.False(IntentRecognizer.Recognize(IntentRecognizer.Normalize(text)).HasFlag(Intent.Info));
 
     [Fact]
     public void Not_sure_is_neither_yes_nor_no()

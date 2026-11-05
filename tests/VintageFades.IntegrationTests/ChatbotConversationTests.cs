@@ -47,11 +47,12 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
         Assert.Contains("10. 18:00 – 19:00", slots);
         Assert.Contains("Reply with the number of the slot you'd like.", slots);
 
-        // The customer picks a slot by its number: 6 is 14:00 – 15:00, not 06:00.
-        Assert.Contains("Would you prefer a specific barber or the first available barber?", await Say("6"));
+        Assert.Contains("Want a particular barber? Type their name: Kapza, Luther, Godwin, Tevohn.", slots);
 
-        var held = await Say("Anyone.");
-        Assert.Contains("Let me check availability", held);
+        // The customer picks a slot by its number: 6 is 14:00 – 15:00, not 06:00. No barber question: first free barber.
+        var held = await Say("6");
+        Assert.DoesNotContain("specific barber", held);
+        Assert.Contains("14:00 on Tuesday, 3 November with Kapza is available", held);
         Assert.Contains("What name should I put the booking under?", held);
         Assert.Equal(BookingStatus.Pending, (await App.Db(db => db.Bookings.SingleAsync())).Status);
 
@@ -106,7 +107,59 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     public async Task Bare_hour_with_one_sensible_reading_is_used()
     {
         await Say("Can I book tomorrow?");
-        Assert.Contains("specific barber", await Say("2"));
+        Assert.Contains("with Kapza is available", await Say("2")); // slot 2 is 10:00 – 11:00
+    }
+
+    [Fact]
+    public async Task Barber_can_be_named_while_choosing_a_slot_or_confirming()
+    {
+        await Say("Can I book tomorrow?");
+        var luther = await Say("Luther");
+        Assert.Contains("Here are the open slots on Tuesday, 3 November with Luther:", luther);
+        await Say("1");
+        await Say("Ana");
+        var confirm = await Say("actually Godwin please");
+        Assert.Contains("with Godwin", confirm);
+    }
+
+    [Fact]
+    public async Task Hi_or_restart_in_the_middle_of_a_booking_returns_to_the_menu()
+    {
+        await Say("Can I book tomorrow?");
+        var hi = await Say("hi");
+        Assert.Contains("What would you like to do?", hi);
+        Assert.DoesNotContain("didn't quite get that", hi);
+
+        await Say("1");
+        Assert.Contains("What would you like to do?", await Say("lets restart"));
+        Assert.Equal(0, await App.Db(db => db.Bookings.CountAsync(b => b.Status == BookingStatus.Pending)));
+    }
+
+    [Fact]
+    public async Task Price_hours_and_location_questions_are_answered_and_the_booking_continues()
+    {
+        await Say("Can I book tomorrow?");
+        var reply = await Say("how much is a taper with go black");
+        Assert.Contains("Haircut (adults): N$150", reply);
+        Assert.Contains("Haircut + full black: N$250", reply);
+        Assert.Contains("Opening hours:", reply);
+        Assert.Contains("26 Van Rhijn Street", reply);
+        Assert.Contains("Back to your booking: Reply with the number of the slot", reply);
+        Assert.DoesNotContain("didn't quite get that", reply);
+
+        Assert.Contains("with Kapza is available", await Say("3"));
+        Assert.Contains("Ready to book?", await Say("where are you located", "264819999999"));
+    }
+
+    [Fact]
+    public async Task Declining_the_human_offer_and_saying_what_you_want_starts_that_request()
+    {
+        await Say("hi");
+        await Say("qwerty");
+        Assert.Contains("Would you like me to notify someone", await Say("asdfgh"));
+        var reply = await Say("no i want to book a haircut");
+        Assert.Contains("What date would you like to come in?", reply);
+        Assert.DoesNotContain("let's keep going", reply);
     }
 
     [Fact]

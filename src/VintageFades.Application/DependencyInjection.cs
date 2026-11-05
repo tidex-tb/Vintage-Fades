@@ -14,6 +14,7 @@ public static class DependencyInjection
     {
         services.Configure<BookingOptions>(configuration.GetSection(BookingOptions.SectionName));
         services.Configure<ChatbotOptions>(configuration.GetSection(ChatbotOptions.SectionName));
+        services.Configure<ShopInfoOptions>(configuration.GetSection(ShopInfoOptions.SectionName));
         services.Configure<NotificationOptions>(configuration.GetSection(NotificationOptions.SectionName));
         services.Configure<OutboxOptions>(configuration.GetSection(OutboxOptions.SectionName));
         services.Configure<RetentionOptions>(configuration.GetSection(RetentionOptions.SectionName));
