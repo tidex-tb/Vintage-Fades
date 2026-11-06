@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<OutboxDispatcher>();
         services.AddScoped<ReminderScheduler>();
         services.AddScoped<IdleConversationService>();
+        services.AddScoped<DashboardService>();
         services.AddScoped<OperationalMonitor>();
         services.AddScoped<DataRetentionService>();
         services.AddScoped<OperationalStatusService>();

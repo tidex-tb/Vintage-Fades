@@ -15,6 +15,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<BarberTimeOff> BarberTimeOff => Set<BarberTimeOff>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<ServiceRecord> ServiceRecords => Set<ServiceRecord>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<ConversationMessage> ConversationMessages => Set<ConversationMessage>();
     public DbSet<ShopSettings> ShopSettings => Set<ShopSettings>();
@@ -94,6 +95,19 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 t.HasCheckConstraint("CK_Bookings_PendingHasExpiry", "\"Status\" <> 'Pending' OR \"HoldExpiresAtUtc\" IS NOT NULL");
             });
             // The exclusion constraint itself is created in the migration (EF has no fluent API for EXCLUDE).
+        });
+
+        model.Entity<ServiceRecord>(e =>
+        {
+            e.Property(x => x.ServiceName).HasMaxLength(200);
+            e.Property(x => x.CustomerName).HasMaxLength(100);
+            e.Property(x => x.Price).HasPrecision(10, 2);
+            e.HasIndex(x => x.PerformedAtUtc);
+            e.HasIndex(x => new { x.BarberId, x.PerformedAtUtc });
+            e.HasIndex(x => x.BookingId);
+            e.HasOne(x => x.Booking).WithMany().HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Barber).WithMany().HasForeignKey(x => x.BarberId).OnDelete(DeleteBehavior.Restrict);
+            e.ToTable(t => t.HasCheckConstraint("CK_ServiceRecords_Price", "\"Price\" >= 0"));
         });
 
         model.Entity<Conversation>(e =>

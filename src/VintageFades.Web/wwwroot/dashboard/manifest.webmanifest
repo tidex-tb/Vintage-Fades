@@ -1,0 +1,13 @@
+{
+  "name": "Vintage Fades",
+  "short_name": "Vintage Fades",
+  "description": "Appointments, walk-ins and earnings for Vintage Fades Barber Shop",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f0d1a",
+  "theme_color": "#0f0d1a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

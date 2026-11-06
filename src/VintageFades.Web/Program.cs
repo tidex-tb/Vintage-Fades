@@ -81,6 +81,24 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
     if (configuration.GetValue("Hosting:UseHttpsRedirection", false)) app.UseHttpsRedirection();
 }
+// The owner dashboard is a set of static files under wwwroot/dashboard. They contain no secrets (the page asks for the
+// admin key and calls /api/admin with it), but they still get strict headers: no framing, no third-party scripts, no caching of stale copies.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/dashboard"))
+    {
+        var headers = context.Response.Headers;
+        headers["Content-Security-Policy"] =
+            "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; " +
+            "base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["Referrer-Policy"] = "no-referrer";
+        headers["Cache-Control"] = "no-cache";
+    }
+    await next();
+});
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -492,6 +492,59 @@ namespace VintageFades.Infrastructure.Persistence.Migrations
                     b.ToTable("OutboxMessages");
                 });
 
+            modelBuilder.Entity("VintageFades.Domain.ServiceRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BarberId")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("BookingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("PerformedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("PerformedAtUtc");
+
+                    b.HasIndex("BarberId", "PerformedAtUtc");
+
+                    b.ToTable("ServiceRecords", t =>
+                        {
+                            t.HasCheckConstraint("CK_ServiceRecords_Price", "\"Price\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("VintageFades.Domain.ShopSettings", b =>
                 {
                     b.Property<int>("Id")
@@ -654,6 +707,24 @@ namespace VintageFades.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("VintageFades.Domain.ServiceRecord", b =>
+                {
+                    b.HasOne("VintageFades.Domain.Barber", "Barber")
+                        .WithMany()
+                        .HasForeignKey("BarberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("VintageFades.Domain.Booking", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Barber");
+
+                    b.Navigation("Booking");
                 });
 
             modelBuilder.Entity("VintageFades.Domain.Barber", b =>

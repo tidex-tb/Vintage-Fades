@@ -12,6 +12,7 @@ public interface IAppDbContext
     DbSet<BarberTimeOff> BarberTimeOff { get; }
     DbSet<Customer> Customers { get; }
     DbSet<Booking> Bookings { get; }
+    DbSet<ServiceRecord> ServiceRecords { get; }
     DbSet<Conversation> Conversations { get; }
     DbSet<ConversationMessage> ConversationMessages { get; }
     DbSet<ShopSettings> ShopSettings { get; }

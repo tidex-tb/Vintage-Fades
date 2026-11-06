@@ -47,6 +47,28 @@ public class Customer
     public DateTime UpdatedAtUtc { get; set; }
 }
 
+/// <summary>One service the shop actually performed (and was paid for). The owner records these from the dashboard, which is what
+/// makes revenue per barber, per service and per day possible. A record belongs to a booking, or stands alone for a walk-in.</summary>
+public class ServiceRecord
+{
+    public long Id { get; set; }
+    public long? BookingId { get; set; }
+    public Booking? Booking { get; set; }
+    /// <summary>Groups the services entered together for one customer, so a walk-in who had two services counts as one visit.</summary>
+    public Guid VisitId { get; set; }
+    /// <summary>The barber who did the work. This can differ from the barber the customer booked.</summary>
+    public int BarberId { get; set; }
+    public Barber? Barber { get; set; }
+    public required string ServiceName { get; set; }
+    public decimal Price { get; set; }
+    public string? CustomerName { get; set; }
+    /// <summary>When the service happened: the appointment time for a booking, the entry time for a walk-in.</summary>
+    public DateTime PerformedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    /// <summary>Set when the owner deletes a wrong entry. Voided records stay in the table but are left out of every report.</summary>
+    public DateTime? VoidedAtUtc { get; set; }
+}
+
 public class Booking
 {
     /// <summary>Statuses that occupy a barber's slot. Pending only while its hold has not expired
