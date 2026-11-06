@@ -44,6 +44,8 @@ public sealed class BookingDraft
     /// <summary>Set when the bot asked an idle customer whether they still want to continue. If they answer, the
     /// question is cleared; if they stay silent, the conversation is reset.</summary>
     public DateTime? IdleCheckSentAtUtc { get; set; }
+    /// <summary>Set when the bot showed only part of the price list and offered "more"; the next message may ask for the rest.</summary>
+    public bool MorePricesOffered { get; set; }
 
     public string Serialize() => JsonSerializer.Serialize(this, Json);
 
