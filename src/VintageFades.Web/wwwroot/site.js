@@ -42,10 +42,10 @@ function renderInfo(info) {
   $('s-length').textContent = info.durationMinutes + ' minutes';
 
   const facts = $('facts');
-  facts.replaceChildren(
+  facts.replaceChildren(...[
     h('li', {}, '🕘 ' + info.hours),
     info.address ? h('li', {}, '📍 ' + info.address.split(',').slice(-2).join(',').trim()) : null,
-    h('li', {}, '✂️ ' + info.barbers.length + ' barbers'));
+    h('li', {}, '✂️ ' + info.barbers.length + ' barbers')].filter(Boolean));
 
   // prices
   const tabs = $('cat-tabs');
@@ -53,9 +53,9 @@ function renderInfo(info) {
   const show = idx => {
     tabs.querySelectorAll('.tab').forEach((t, i) => t.setAttribute('aria-selected', String(i === idx)));
     const cat = info.catalog[idx];
-    list.replaceChildren(
+    list.replaceChildren(...[
       cat.note ? h('div', { class: 'cat-note' }, cat.note) : null,
-      ...cat.items.map(i => h('div', { class: 'price-row' }, h('div', {}, i.name, i.details ? h('small', {}, i.details) : null), h('b', {}, i.price))));
+      ...cat.items.map(i => h('div', { class: 'price-row' }, h('div', {}, i.name, i.details ? h('small', {}, i.details) : null), h('b', {}, i.price)))].filter(Boolean));
   };
   info.catalog.forEach((c, idx) => tabs.append(h('button', { class: 'tab', type: 'button', role: 'tab', 'aria-selected': 'false', onclick: () => show(idx) }, c.category)));
   if (info.catalog.length) show(0);
