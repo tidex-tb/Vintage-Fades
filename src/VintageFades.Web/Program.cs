@@ -45,6 +45,19 @@ builder.Services.AddRateLimiter(options =>
     // Meta delivers from many addresses; one generous shared bucket protects the database from floods.
     options.AddPolicy("webhooks", _ => RateLimitPartition.GetFixedWindowLimiter("meta",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 100 }));
+    // Behind the hosting platform's proxy every request arrives from the proxy's address, so the visitor is the last
+    // X-Forwarded-For entry (the one the proxy itself appended; earlier entries can be forged by the client).
+    static string Visitor(HttpContext ctx)
+    {
+        var forwarded = ctx.Request.Headers["X-Forwarded-For"].ToString();
+        var last = forwarded.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        return last ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    }
+    options.AddPolicy("public", ctx => RateLimitPartition.GetFixedWindowLimiter("pub:" + Visitor(ctx),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) }));
+    // Booking, looking up and cancelling: few per visitor, so the site cannot be used to flood the diary or guess references.
+    options.AddPolicy("public-book", ctx => RateLimitPartition.GetFixedWindowLimiter("book:" + Visitor(ctx),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(10) }));
     options.AddPolicy("admin", ctx => RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1) }));
 });
@@ -85,7 +98,8 @@ if (!app.Environment.IsDevelopment())
 // admin key and calls /api/admin with it), but they still get strict headers: no framing, no third-party scripts, no caching of stale copies.
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/dashboard"))
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/dashboard") || path == "/" || path.Value!.EndsWith(".html") || path.Value.EndsWith(".js") || path.Value.EndsWith(".css"))
     {
         var headers = context.Response.Headers;
         headers["Content-Security-Policy"] =
@@ -124,7 +138,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
         }));
     }
 });
-app.MapGet("/", () => Results.Text("VINTAGE FADES booking service"));
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

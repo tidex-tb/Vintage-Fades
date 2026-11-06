@@ -32,7 +32,7 @@ public sealed class AdminService(IAppDbContext db, BookingService bookings, Shop
     public async Task<(BookingResult Result, BookingSummary? Summary)> CreateManualBookingAsync(ManualBookingRequest request, CancellationToken ct)
     {
         var calendar = await settings.GetCalendarAsync(ct);
-        var phone = PhoneNumbers.Normalize(request.PhoneNumber) is { } digits ? "+" + digits : null;
+        var phone = PhoneNumbers.ToInternational(request.PhoneNumber);
         var customer = phone is null ? null : await db.Customers.FirstOrDefaultAsync(c => c.PhoneNumber == phone, ct);
         if (customer is null)
         {

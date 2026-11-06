@@ -408,6 +408,7 @@ public sealed class BookingService(
         BookingSource.WhatsApp => "WhatsApp",
         BookingSource.Instagram => "Instagram",
         BookingSource.Messenger => "Facebook Messenger",
+        BookingSource.Web => "Website",
         _ => "Manual (shop)"
     };
 }

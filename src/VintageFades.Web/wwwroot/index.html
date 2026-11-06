@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0b1a">
+  <title>Vintage Fades Barber Shop · Windhoek</title>
+  <meta name="description" content="Book your haircut online at Vintage Fades Barber Shop, 26 Van Rhijn Street, Windhoek. See open times, choose your barber, and book in under a minute.">
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <header class="nav" id="top">
+    <a class="brand" href="#top" aria-label="Vintage Fades home"><img src="/logo.svg" alt="" width="36" height="36"><span>Vintage <b>Fades</b></span></a>
+    <nav aria-label="Main">
+      <a href="#services">Prices</a>
+      <a href="#barbers">Barbers</a>
+      <a href="#visit">Find us</a>
+      <a href="#manage">My booking</a>
+    </nav>
+    <a class="btn gold small" href="#book">Book now</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="pole" aria-hidden="true"></div>
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow">Barber shop · Windhoek</p>
+          <h1>Sharp cuts.<br><span class="gold-text">Zero waiting.</span></h1>
+          <p class="lead">Pick your barber, see the times that are really free, and lock your slot in under a minute. Walk-ins are welcome too.</p>
+          <div class="cta-row">
+            <a class="btn gold" href="#book">Book an appointment</a>
+            <a class="btn ghost" href="#services">See prices</a>
+          </div>
+          <ul class="facts" id="facts" aria-label="Shop details"></ul>
+        </div>
+        <div class="hero-card" aria-hidden="true">
+          <div class="mini-head"><span>Today</span><i class="dot"></i></div>
+          <div class="mini-row"><b>09:00</b><span>Classic men's haircut</span></div>
+          <div class="mini-row"><b>10:00</b><span>Haircut + beard trim</span></div>
+          <div class="mini-row free"><b>11:00</b><span>Free slot · Book it</span></div>
+          <div class="mini-row"><b>12:00</b><span>Students haircut</span></div>
+          <div class="mini-row free"><b>13:00</b><span>Free slot · Book it</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="book">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Book online</p>
+          <h2>Choose your time</h2>
+          <p class="muted">Open times update live, including bookings made on WhatsApp, Instagram or by phone, so a slot you can see is a slot that is free.</p>
+        </div>
+
+        <div class="book-grid">
+          <div class="book-steps">
+            <div class="step" id="step-barber">
+              <h3><span class="n">1</span> Barber</h3>
+              <div class="chips" id="barbers-pick" role="radiogroup" aria-label="Choose a barber"></div>
+            </div>
+            <div class="step" id="step-date">
+              <h3><span class="n">2</span> Day</h3>
+              <div class="days" id="days" role="radiogroup" aria-label="Choose a day"><div class="skeleton"></div></div>
+            </div>
+            <div class="step" id="step-time">
+              <h3><span class="n">3</span> Time <small class="muted" id="time-note"></small></h3>
+              <div class="times" id="times" role="radiogroup" aria-label="Choose a time"><p class="muted">Pick a day to see open times.</p></div>
+            </div>
+          </div>
+
+          <aside class="summary" id="summary" aria-live="polite">
+            <h3>Your appointment</h3>
+            <dl>
+              <dt>Barber</dt><dd id="s-barber">Any available barber</dd>
+              <dt>Day</dt><dd id="s-date">-</dd>
+              <dt>Time</dt><dd id="s-time">-</dd>
+              <dt>Length</dt><dd id="s-length">60 minutes</dd>
+            </dl>
+            <form id="book-form" novalidate>
+              <label>Your name<input id="f-name" name="name" type="text" autocomplete="name" maxlength="100" required placeholder="e.g. Tatenda"></label>
+              <label>Phone number<input id="f-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="081 234 5678"></label>
+              <label>Notes <span class="muted">(optional)</span><input id="f-notes" name="notes" type="text" maxlength="500" placeholder="Anything we should know?"></label>
+              <input class="hp" id="f-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+              <p class="error" id="form-error" role="alert"></p>
+              <button class="btn gold block" id="submit" type="submit" disabled>Confirm booking</button>
+              <p class="fine">We use your number only to run your booking. See our <a href="/privacy.html">privacy notice</a>.</p>
+            </form>
+          </aside>
+        </div>
+
+        <div class="success hidden" id="success" tabindex="-1">
+          <div class="tick" aria-hidden="true">✓</div>
+          <h2>You're booked!</h2>
+          <p class="muted">Show this reference at the shop. Keep it to look up or cancel your booking.</p>
+          <div class="ref" id="ok-ref"></div>
+          <dl class="ok-list">
+            <dt>Name</dt><dd id="ok-name"></dd>
+            <dt>Barber</dt><dd id="ok-barber"></dd>
+            <dt>Day</dt><dd id="ok-date"></dd>
+            <dt>Time</dt><dd id="ok-time"></dd>
+            <dt>Where</dt><dd id="ok-where"></dd>
+          </dl>
+          <div class="cta-row center">
+            <button class="btn gold" id="ok-ics" type="button">Add to my calendar</button>
+            <button class="btn ghost" id="ok-again" type="button">Book another</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="services">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">Services &amp; prices</p>
+          <h2>Everything on the menu</h2>
+        </div>
+        <div class="tabs" id="cat-tabs" role="tablist" aria-label="Service categories"></div>
+        <div class="price-list" id="price-list"></div>
+        <ul class="notes" id="notes"></ul>
+      </div>
+    </section>
+
+    <section class="section" id="barbers">
+      <div class="wrap">
+        <div class="section-head">
+          <p class="eyebrow">The team</p>
+          <h2>Meet your barbers</h2>
+        </div>
+        <div class="team" id="team"></div>
+      </div>
+    </section>
+
+    <section class="section alt" id="manage">
+      <div class="wrap narrow">
+        <div class="section-head">
+          <p class="eyebrow">Already booked?</p>
+          <h2>Find or cancel your booking</h2>
+          <p class="muted">Type the reference from your confirmation and the phone number you booked with.</p>
+        </div>
+        <form id="manage-form" class="card-form" novalidate>
+          <label>Reference<input id="m-ref" type="text" placeholder="VF-2026-000123" autocomplete="off" required></label>
+          <label>Phone number<input id="m-phone" type="tel" inputmode="tel" placeholder="081 234 5678" required></label>
+          <p class="error" id="m-error" role="alert"></p>
+          <button class="btn gold block" type="submit">Find my booking</button>
+        </form>
+        <div class="found hidden" id="found">
+          <dl class="ok-list">
+            <dt>Reference</dt><dd id="fd-ref"></dd>
+            <dt>Barber</dt><dd id="fd-barber"></dd>
+            <dt>Day</dt><dd id="fd-date"></dd>
+            <dt>Time</dt><dd id="fd-time"></dd>
+          </dl>
+          <button class="btn danger block" id="fd-cancel" type="button">Cancel this booking</button>
+          <p class="fine" id="fd-note"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="visit">
+      <div class="wrap visit-grid">
+        <div>
+          <p class="eyebrow">Find us</p>
+          <h2>Come say hi</h2>
+          <ul class="contact" id="contact"></ul>
+        </div>
+        <div class="map-card" aria-hidden="true">
+          <div class="pin">📍</div>
+          <b id="map-address">26 Van Rhijn Street, Windhoek</b>
+          <span class="muted">Opposite ECN, close to the new Home Affairs</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap foot-row">
+      <span>© <span id="year"></span> <span id="foot-name">Vintage Fades Barber Shop</span></span>
+      <a href="/privacy.html">Privacy &amp; data deletion</a>
+    </div>
+  </footer>
+
+  <script src="/site.js"></script>
+</body>
+</html>
