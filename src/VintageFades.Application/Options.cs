@@ -125,4 +125,15 @@ public static class PhoneNumbers
         var digits = new string(phone.Where(char.IsAsciiDigit).ToArray());
         return digits.Length == 0 ? null : digits;
     }
+
+    /// <summary>"+264…" form that matches what WhatsApp stores. A local Namibian number (081 474 8665) gets the 264 code.
+    /// Null when it is not a plausible phone number.</summary>
+    public static string? ToInternational(string? phone, string defaultCountryCode = "264")
+    {
+        var digits = Normalize(phone);
+        if (digits is null) return null;
+        if (digits.StartsWith("00")) digits = digits[2..];
+        else if (digits.StartsWith('0')) digits = defaultCountryCode + digits[1..];
+        return digits.Length is >= 9 and <= 15 ? "+" + digits : null;
+    }
 }

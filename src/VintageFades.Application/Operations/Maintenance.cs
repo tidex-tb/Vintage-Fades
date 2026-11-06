@@ -31,7 +31,7 @@ public sealed class ReminderScheduler(
             var due = await db.Bookings.AsNoTracking().Include(b => b.Barber).Include(b => b.Customer)
                 .Where(b => b.Status == BookingStatus.Confirmed && b.StartAtUtc > now && b.StartAtUtc <= horizon
                             && b.CreatedAtUtc <= b.StartAtUtc.AddMinutes(-offset)
-                            && b.SourcePlatform != BookingSource.Admin)
+                            && b.SourcePlatform != BookingSource.Admin && b.SourcePlatform != BookingSource.Web)
                 .ToListAsync(ct);
 
             foreach (var booking in due)

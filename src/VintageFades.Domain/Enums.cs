@@ -23,7 +23,9 @@ public enum BookingSource
     WhatsApp,
     Instagram,
     Messenger,
-    Admin
+    Admin,
+    /// <summary>The shop's public website.</summary>
+    Web
 }
 
 public enum MessageDirection

@@ -167,3 +167,15 @@ Everything it says comes from the `ShopInfo` section of `src/VintageFades.Web/ap
 
 To change a price or add a service, edit that file and push to `main`; Railway redeploys automatically. After a change,
 run the tests: `ShopInfoResponderTests` checks the catalog and the matching.
+
+## The customer website (online booking)
+
+The home page of the domain (`/`) is the shop's public site: prices from the `ShopInfo` catalog, the barbers, the address, and online booking. A visitor picks a barber (or "any"), a day and a time, then types a name and phone number.
+
+- **One diary.** The site reads open slots straight from the database and books through the same engine as WhatsApp, Instagram and the dashboard. A slot taken anywhere disappears everywhere, and two people clicking the same slot at once get one booking (the database refuses the second).
+- **You are told.** Each website booking sends you the usual "NEW BOOKING" alert with `Platform: Website`, and appears on the dashboard Calendar and Appointments pages as a website booking.
+- **Customers can cancel** from "My booking" with the reference and the phone number used. Cancellations follow the same notice rule as the chat (`CancellationNoticeHours`).
+- **No reminders yet** for website bookings (there is no chat to send them to).
+- **Limits** protect the diary: 10 bookings, look-ups or cancellations per visitor per 10 minutes, at most 3 upcoming bookings per phone number, and a hidden field that catches scripts.
+- Phone numbers are stored as `+264…` (a leading 0 becomes 264), so a customer who books on the site and later chats on WhatsApp is the same person.
+- `/privacy.html` is the privacy and data-deletion page (the address Meta asks for during app review).

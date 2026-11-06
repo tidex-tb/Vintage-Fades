@@ -43,6 +43,15 @@ public sealed partial class AdminController(
     [HttpGet("day")]
     public async Task<DaySchedule> Day([FromQuery] DateOnly date, CancellationToken ct) => await dashboard.GetDayAsync(date, ct);
 
+    /// <summary>Seven days from the given date, for the dashboard's calendar grid.</summary>
+    [HttpGet("week")]
+    public async Task<IReadOnlyList<DaySchedule>> Week([FromQuery] DateOnly from, CancellationToken ct)
+    {
+        var days = new List<DaySchedule>(7);
+        for (var i = 0; i < 7; i++) days.Add(await dashboard.GetDayAsync(from.AddDays(i), ct));
+        return days;
+    }
+
     [HttpPost("bookings/{reference}/complete")]
     public async Task<IActionResult> Complete(string reference, CompleteRequest request, CancellationToken ct) =>
         ToResponse(await dashboard.CompleteAsync(reference, request, ct));
