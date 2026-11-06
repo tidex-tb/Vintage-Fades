@@ -121,3 +121,20 @@ If a messaging channel or the whole service is down:
 
 No action is needed. Holds expire after 10 minutes, and an unfinished conversation older than 24 hours starts
 again from the menu.
+
+## Prices, services and shop details the bot can answer
+
+Customers can ask about prices, a specific service ("do you do facials", "how much is a kids cut"), opening hours,
+where the shop is, contact details, walk-ins and how long an appointment takes, with or without saying hello first.
+The bot answers directly and then shows the booking menu (or returns to the booking step they were on).
+
+Everything it says comes from the `ShopInfo` section of `src/VintageFades.Web/appsettings.json`:
+
+- `Address`, `Phone`, `Email`, `Instagram`, and `Hours` (leave empty to use the opening hours from the shop settings).
+- `Catalog`: categories with items. Each item has a `Name`, a `Price`, optional `Details`, and `Keywords`, the words a
+  customer might use for it. Specific keywords ("kids", "hollywood") count more than generic ones ("haircut", "cut").
+- `Notes`: lines shown under the full price list.
+- `Faqs`: keyword-matched answers (walk-ins, hygiene, hot towel).
+
+To change a price or add a service, edit that file and push to `main`; Railway redeploys automatically. After a change,
+run the tests: `ShopInfoResponderTests` checks the catalog and the matching.

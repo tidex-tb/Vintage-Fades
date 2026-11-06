@@ -31,16 +31,48 @@ public sealed class ChatbotOptions
     public int ManualReplyPauseMinutes { get; set; } = 10;
 }
 
-/// <summary>What the bot tells customers who ask about prices, hours or where the shop is.</summary>
+/// <summary>What the bot tells customers who ask about prices, services, hours, location or contact details.
+/// Bound from the "ShopInfo" section, so the owner can change prices without a code change.</summary>
 public sealed class ShopInfoOptions
 {
     public const string SectionName = "ShopInfo";
 
     public string? Address { get; set; }
-    /// <summary>One line per service, e.g. "Haircut (adults): N$150".</summary>
-    public List<string> Prices { get; set; } = [];
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+    public string? Instagram { get; set; }
     /// <summary>Opening hours as free text. When empty, the bot describes the hours from the shop settings.</summary>
     public string? Hours { get; set; }
+    /// <summary>The price list, grouped as on the printed menu.</summary>
+    public List<CatalogCategory> Catalog { get; set; } = [];
+    /// <summary>Short facts shown with the full price list (for example "Walk-ins are also welcome").</summary>
+    public List<string> Notes { get; set; } = [];
+    /// <summary>Answers to common questions, matched by keywords.</summary>
+    public List<ShopFaq> Faqs { get; set; } = [];
+}
+
+public sealed class CatalogCategory
+{
+    public string Name { get; set; } = "";
+    /// <summary>Optional line shown under the category when the whole category is listed.</summary>
+    public string? Note { get; set; }
+    public List<CatalogItem> Items { get; set; } = [];
+}
+
+public sealed class CatalogItem
+{
+    public string Name { get; set; } = "";
+    public string Price { get; set; } = "";
+    /// <summary>Optional detail shown after the price, e.g. what a treatment includes.</summary>
+    public string? Details { get; set; }
+    /// <summary>Words a customer might use for this service. Matched as whole words (plurals allowed).</summary>
+    public List<string> Keywords { get; set; } = [];
+}
+
+public sealed class ShopFaq
+{
+    public List<string> Keywords { get; set; } = [];
+    public string Answer { get; set; } = "";
 }
 
 /// <summary>Owner destination and approved WhatsApp templates. Bound from the "WhatsApp" section.</summary>
