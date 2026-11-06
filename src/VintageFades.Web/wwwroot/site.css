@@ -15,7 +15,8 @@
   --shadow: 0 20px 50px rgba(0, 0, 0, .45);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; overflow-x: hidden; }
+body { overflow-x: hidden; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -91,8 +92,9 @@ h3 { font-size: 1.05rem; }
 .section-head p.muted { margin: 12px 0 0; }
 
 /* booking */
-.book-grid { display: grid; grid-template-columns: 1fr 380px; gap: 28px; align-items: start; }
-.book-steps { display: grid; gap: 18px; }
+.book-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: start; }
+.book-steps { display: grid; gap: 18px; min-width: 0; }
+.step { min-width: 0; }
 .step { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
 .step h3 { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
 .step h3 small { font-weight: 400; }
@@ -103,7 +105,7 @@ h3 { font-size: 1.05rem; }
 }
 .chip:hover { border-color: var(--gold); }
 .chip[aria-checked="true"] { background: var(--gold); border-color: var(--gold); color: #1a1530; }
-.days { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.days { min-height: 84px; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; scrollbar-width: thin; }
 .day {
   flex: 0 0 auto; width: 76px; padding: 12px 6px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--line);
   display: grid; gap: 2px; text-align: center; scroll-snap-align: start; transition: all .15s;
@@ -124,7 +126,7 @@ h3 { font-size: 1.05rem; }
 .time:hover { border-color: var(--gold); }
 .time[aria-checked="true"] { background: var(--gold); border-color: var(--gold); color: #1a1530; }
 .time[aria-checked="true"] small { color: #1a1530; }
-.skeleton { height: 76px; width: 100%; border-radius: 14px; background: linear-gradient(90deg, var(--panel-2), var(--line), var(--panel-2)); background-size: 200% 100%; animation: shimmer 1.2s infinite linear; }
+.skeleton { height: 84px; width: 100%; border-radius: 14px; background: linear-gradient(90deg, var(--panel-2), var(--line), var(--panel-2)); background-size: 200% 100%; animation: shimmer 1.2s infinite linear; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 .summary { position: sticky; top: 88px; background: linear-gradient(160deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: 20px; padding: 24px; box-shadow: var(--shadow); }
