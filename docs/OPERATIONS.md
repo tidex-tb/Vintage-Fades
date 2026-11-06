@@ -122,6 +122,35 @@ If a messaging channel or the whole service is down:
 No action is needed. Holds expire after 10 minutes, and an unfinished conversation older than 24 hours starts
 again from the menu.
 
+## The owner dashboard (appointments and earnings)
+
+Open `https://<your-railway-address>/dashboard/` on your phone or computer. It is part of the bot service, so it needs
+no extra website, domain or hosting. On a phone, use the browser menu and choose **Add to Home screen** to get an app icon.
+
+**Sign-in.** The page asks for the admin key, which is the value of `Admin__ApiKey` in Railway (at least 32 characters; make
+it long and random, and keep it private). It is remembered on that device until you sign out.
+
+**Today** (the default view)
+- Every appointment of the day with its barber, customer and status. Use the arrows to move between days.
+- **Done**: pick the services that were done (from the price list, or "Other service"), who actually did them, and adjust
+  the price if there was a discount. This is what feeds the earnings. Use **+ Add service** on a finished appointment to
+  add something forgotten, and the ✕ next to a line to remove a mistake.
+- **No-show** and **Cancel** (the customer is told about a cancellation on their chat).
+- An appointment can only be closed once it has started (or is within 30 minutes of starting), so a future slot is never freed by accident.
+
+**The + button**
+- **Phone booking**: name, phone, barber (or first available), date and a free time slot. It is saved as a normal confirmed
+  booking, so the bot treats that slot as taken immediately and will not offer it to anyone else.
+- **Walk-in / sale**: a customer who had no booking. Pick the barber and services. You can also choose an earlier date to
+  catch up on entries from a paper book.
+
+**Earnings**: choose Today, This week (Monday to today), This month, Last month or a custom range. You see revenue, customers
+served, services done, the average per customer, no-shows and cancellations; revenue per barber (ranked, with each barber's
+share), per service and per day; and a **CSV download** that opens in Excel or Google Sheets.
+
+Revenue is counted from the services you record with **Done** or **Walk-in**, at the price you saved, and only for the barber
+who did the work. Appointments that are never closed earn nothing, so close each one when the customer leaves.
+
 ## Prices, services and shop details the bot can answer
 
 Customers can ask about prices, a specific service ("do you do facials", "how much is a kids cut"), opening hours,

@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
+using VintageFades.Application;
 using VintageFades.Application.Abstractions;
 using VintageFades.Application.Bookings;
 using VintageFades.Application.Operations;
@@ -8,13 +10,75 @@ using VintageFades.Web.Security;
 
 namespace VintageFades.Web.Controllers;
 
-/// <summary>Owner/operator API (not a dashboard). Requires the X-Admin-Key header.</summary>
+/// <summary>Owner/operator API, used by the dashboard page at /dashboard and by scripts. Requires the X-Admin-Key header.</summary>
 [ApiController]
 [Route("api/admin")]
 [Authorize(AuthenticationSchemes = AdminKeyAuthenticationHandler.SchemeName)]
 [EnableRateLimiting("admin")]
-public sealed class AdminController(AdminService admin, OperationalStatusService status, IWorkSignal signal) : ControllerBase
+public sealed partial class AdminController(
+    AdminService admin,
+    DashboardService dashboard,
+    BookingService bookingService,
+    IOptions<ShopInfoOptions> shopInfo,
+    OperationalStatusService status,
+    IWorkSignal signal) : ControllerBase
 {
+    private const int MaxReportDays = 400;
+
+    /// <summary>The price list as the dashboard offers it when recording what was done.</summary>
+    [HttpGet("catalog")]
+    public IActionResult Catalog() => Ok(shopInfo.Value.Catalog.Select(c => new
+    {
+        Category = c.Name,
+        Items = c.Items.Select(i => new { i.Name, Price = ParsePrice(i.Price), Display = i.Price })
+    }));
+
+    /// <summary>Open slots for the phone-booking form. With no barberId, every barber's open slots are listed.</summary>
+    [HttpGet("slots")]
+    public async Task<IActionResult> Slots([FromQuery] DateOnly date, [FromQuery] int? barberId, CancellationToken ct) =>
+        Ok((await bookingService.GetAvailableSlotsAsync(date, barberId, null, ct))
+            .Select(s => new { Time = Format.Time(s.Time), s.BarberId, Barber = s.BarberName }));
+
+    /// <summary>One day: every appointment with what was recorded for it, plus walk-ins and the day's revenue.</summary>
+    [HttpGet("day")]
+    public async Task<DaySchedule> Day([FromQuery] DateOnly date, CancellationToken ct) => await dashboard.GetDayAsync(date, ct);
+
+    [HttpPost("bookings/{reference}/complete")]
+    public async Task<IActionResult> Complete(string reference, CompleteRequest request, CancellationToken ct) =>
+        ToResponse(await dashboard.CompleteAsync(reference, request, ct));
+
+    [HttpPost("bookings/{reference}/no-show")]
+    public async Task<IActionResult> NoShow(string reference, CancellationToken ct) => ToResponse(await dashboard.MarkNoShowAsync(reference, ct));
+
+    /// <summary>A customer who walked in without a booking.</summary>
+    [HttpPost("sales")]
+    public async Task<IActionResult> AddSale(SaleRequest request, CancellationToken ct) => ToResponse(await dashboard.AddSaleAsync(request, ct));
+
+    [HttpDelete("sales/{id:long}")]
+    public async Task<IActionResult> VoidSale(long id, CancellationToken ct) => await dashboard.VoidAsync(id, ct) ? NoContent() : NotFound();
+
+    [HttpGet("reports")]
+    public async Task<IActionResult> Reports([FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken ct)
+    {
+        if (to < from) return ValidationProblem("The end date must not be before the start date.");
+        if (to.DayNumber - from.DayNumber > MaxReportDays) return ValidationProblem($"Reports cover at most {MaxReportDays} days.");
+        return Ok(await dashboard.GetReportAsync(from, to, ct));
+    }
+
+    private IActionResult ToResponse(DashboardResult result) => result.Error switch
+    {
+        DashboardError.None => NoContent(),
+        DashboardError.NotFound => NotFound(),
+        DashboardError.Invalid => ValidationProblem(result.Message ?? "Invalid request."),
+        _ => Conflict(new { error = result.Error.ToString(), message = result.Message })
+    };
+
+    private static decimal ParsePrice(string display) =>
+        decimal.TryParse(PriceDigits().Match(display).Value, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var p) ? p : 0m;
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\d+(?:\.\d+)?")]
+    private static partial System.Text.RegularExpressions.Regex PriceDigits();
+
     [HttpGet("status")]
     public async Task<OperationalStatus> Status(CancellationToken ct) => await status.GetAsync(ct);
 
