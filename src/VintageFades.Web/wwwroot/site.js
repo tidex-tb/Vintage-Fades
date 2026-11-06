@@ -108,41 +108,48 @@ function pickBarber(id, name) {
   loadAvailability();
 }
 
-async function loadAvailability() {
+/** silent = background refresh: no loading placeholder, nothing moves, and nothing is redrawn unless a slot count changed. */
+async function loadAvailability(silent) {
   const days = $('days');
-  days.replaceChildren(h('div', { class: 'skeleton' }));
+  if (!silent) days.replaceChildren(h('div', { class: 'skeleton' }));
+  let fresh;
   try {
-    state.availability = await api('availability' + (state.barberId ? '?barberId=' + state.barberId : ''));
-  } catch (e) { days.replaceChildren(h('p', { class: 'muted' }, e.message)); return; }
-  if (state.date && !(state.availability.find(d => d.date === state.date)?.freeSlots > 0)) state.date = null;
+    fresh = await api('availability' + (state.barberId ? '?barberId=' + state.barberId : ''));
+  } catch (e) { if (!silent) days.replaceChildren(h('p', { class: 'muted' }, e.message)); return; }
+  if (silent && JSON.stringify(fresh) === JSON.stringify(state.availability)) return;
+  state.availability = fresh;
+  if (state.date && !(state.availability.find(d => d.date === state.date)?.freeSlots > 0)) { state.date = null; state.time = null; }
   if (!state.date) state.date = state.availability.find(d => d.freeSlots > 0)?.date || null;
-  renderDays();
-  await loadTimes();
+  renderDays(!silent);
+  await loadTimes(silent);
 }
 
-function renderDays() {
+function renderDays(center) {
   const days = $('days');
+  const keep = days.scrollLeft;
   if (!state.availability.length) { days.replaceChildren(h('p', { class: 'muted' }, 'No days to show right now.')); return; }
   days.replaceChildren(...state.availability.map(d => {
     const dt = new Date(d.date + 'T12:00:00Z');
     return h('button', { class: 'day', type: 'button', role: 'radio', disabled: d.freeSlots === 0, 'aria-checked': String(d.date === state.date),
       'aria-label': prettyDate(d.date, true) + (d.freeSlots ? ', ' + d.freeSlots + ' open' : ', fully booked'),
-      onclick: () => { state.date = d.date; state.time = null; renderDays(); loadTimes(); } },
+      onclick: () => { state.date = d.date; state.time = null; renderDays(false); loadTimes(); } },
       h('span', {}, dt.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })),
       h('b', {}, dt.getUTCDate()),
       h('small', {}, d.freeSlots === 0 ? 'Full' : dt.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })));
   }));
-  days.querySelector('[aria-checked="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  // Only ever scroll the day strip sideways (never the page), and only to show a newly chosen day.
+  const sel = days.querySelector('[aria-checked="true"]');
+  days.scrollLeft = center && sel ? Math.max(0, sel.offsetLeft - (days.clientWidth - sel.offsetWidth) / 2) : keep;
 }
 
-async function loadTimes() {
+async function loadTimes(silent) {
   const box = $('times');
   updateSummary();
   if (!state.date) { box.replaceChildren(h('p', { class: 'muted' }, state.availability.length ? 'Fully booked for the coming weeks. Please call the shop.' : 'Pick a day to see open times.')); return; }
-  box.replaceChildren(h('div', { class: 'skeleton' }));
+  if (!silent) box.replaceChildren(h('div', { class: 'skeleton' }));
   let slots;
   try { slots = await api('slots?date=' + state.date + (state.barberId ? '&barberId=' + state.barberId : '')); }
-  catch (e) { box.replaceChildren(h('p', { class: 'muted' }, e.message)); return; }
+  catch (e) { if (!silent) box.replaceChildren(h('p', { class: 'muted' }, e.message)); return; }
   if (state.time && !slots.some(s => s.time === state.time)) state.time = null;
   $('time-note').textContent = slots.length ? '· ' + slots.length + ' open' : '';
   if (!slots.length) { box.replaceChildren(h('p', { class: 'muted' }, 'No open times on this day. Try another day.')); updateSummary(); return; }
@@ -267,7 +274,7 @@ async function start() {
   $('ok-again').addEventListener('click', resetBooking);
   await loadAvailability();
   // Other customers book too: refresh open times every 30 seconds while the page is open and no confirmation is showing.
-  setInterval(() => { if (!document.hidden && !state.booked) { loadAvailability(); } }, 30000);
+  setInterval(() => { if (!document.hidden && !state.booked) { loadAvailability(true); } }, 30000);
 }
 
 start();
