@@ -256,6 +256,37 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     }
 
     [Fact]
+    public async Task Haircut_price_shows_every_haircut_service_then_more_shows_the_whole_catalog()
+    {
+        var first = await Say("haircut price");
+        Assert.Contains("*Haircut services*", first);
+        Assert.Contains("Beard trim – N$30", first);
+        Assert.Contains("Reply *more* to see our full price list.", first);
+        Assert.DoesNotContain("Massage services", first);
+        Assert.Contains("1. Book an appointment", first); // the menu follows
+        Assert.Contains(App.Meta.To(Customer), r => r.Type == "interactive" && r.Text.Contains("Reply *more*")); // offered as a button too
+
+        var full = await Say("more");
+        Assert.Contains("Our price list:", full);
+        Assert.Contains("Massage services (30 minutes)", full);
+        Assert.Contains("Infrared light therapy – N$150", full);
+        Assert.Contains("1. Book an appointment", full);
+        Assert.DoesNotContain("Reply *more*", full);
+    }
+
+    [Fact]
+    public async Task The_more_button_works_and_a_stray_more_does_not_dump_the_catalog()
+    {
+        await Say("how much is a kids cut", "264810000010");
+        var viaButton = Joined(await App.SendAsync(Platform.WhatsApp, "264810000010", "More prices", replyPayload: "more"));
+        Assert.Contains("Massage services (30 minutes)", viaButton);
+
+        // "more" with no price answer just before it is not a request for the catalog.
+        var stray = await Say("more", "264810000011");
+        Assert.DoesNotContain("Massage services", stray);
+    }
+
+    [Fact]
     public async Task A_price_question_after_a_booking_request_does_not_lose_the_booking_details()
     {
         await Say("I want a haircut tomorrow at 14:00"); // no barber yet, so the bot asks for one

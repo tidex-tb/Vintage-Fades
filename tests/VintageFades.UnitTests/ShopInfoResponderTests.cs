@@ -25,8 +25,10 @@ public class ShopInfoResponderTests
         return doc.RootElement.GetProperty("ShopInfo").Deserialize<ShopInfoOptions>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
     }
 
-    private static string? Ask(string text, bool hasBookingDetails = false) =>
+    private static InfoAnswer? Full(string text, bool hasBookingDetails = false) =>
         Responder.TryAnswer(IntentRecognizer.Normalize(text), Settings, hasBookingDetails);
+
+    private static string? Ask(string text, bool hasBookingDetails = false) => Full(text, hasBookingDetails)?.Text;
 
     [Fact]
     public void The_catalog_matches_the_printed_price_list()
@@ -62,13 +64,45 @@ public class ShopInfoResponderTests
         Assert.Contains("Swedish massage – N$800", Ask("swedish massage price?"));
     }
 
-    [Fact]
-    public void A_general_haircut_price_question_lists_the_haircuts()
+    [Theory]
+    [InlineData("how much is a haircut")]
+    [InlineData("haircut price")]
+    [InlineData("How much is a hair cut?")]
+    [InlineData("price for a cut")]
+    public void A_general_haircut_price_question_shows_the_whole_haircut_category_and_offers_more(string question)
     {
-        var answer = Ask("how much is a haircut")!;
-        Assert.Contains("Classic men's haircut – N$150", answer);
-        Assert.Contains("Haircut + beard trim – N$180", answer);
+        var answer = Full(question)!;
+        Assert.True(answer.Partial);
+        Assert.StartsWith("*Haircut services*", answer.Text);
+        foreach (var line in new[] { "Classic men's haircut – N$150", "Haircut + enhancement – N$180", "Haircut + beard trim – N$180", "Bald shave + beard dye – N$200",
+                     "Haircut + beard styling – N$200", "Kids cut (below 11) – N$100", "Students haircut – N$120", "Straight hair (scissors) – N$250", "Beard trim – N$30", "Bald cut – N$100" })
+            Assert.Contains(line, answer.Text);
+        Assert.DoesNotContain("Massage", answer.Text);
     }
+
+    [Fact]
+    public void Specific_answers_are_partial_and_the_full_list_and_other_answers_are_not()
+    {
+        Assert.True(Full("how much is a kids cut")!.Partial);
+        Assert.True(Full("do you do facials")!.Partial);
+        Assert.False(Full("price list")!.Partial);
+        Assert.False(Full("where are you located")!.Partial);
+        Assert.False(Full("what time do you open")!.Partial);
+    }
+
+    [Theory]
+    [InlineData("more")]
+    [InlineData("More")]
+    [InlineData("show more")]
+    [InlineData("full price list")]
+    [InlineData("everything")]
+    public void More_requests_are_recognised(string text) => Assert.True(ShopInfoResponder.IsMoreRequest(IntentRecognizer.Normalize(text)));
+
+    [Theory]
+    [InlineData("more than one haircut")]
+    [InlineData("hi")]
+    [InlineData("book me tomorrow")]
+    public void Other_messages_are_not_more_requests(string text) => Assert.False(ShopInfoResponder.IsMoreRequest(IntentRecognizer.Normalize(text)));
 
     [Fact]
     public void Price_list_and_vague_requests_show_everything_with_the_notes()

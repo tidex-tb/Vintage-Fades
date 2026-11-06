@@ -60,6 +60,9 @@ public sealed partial class ConversationEngine(
         // "carry on": it must not be taken as the answer to the booking question that was open when they went quiet.
         var wasIdleChecked = ctx.Draft.IdleCheckSentAtUtc is not null;
         ctx.Draft.IdleCheckSentAtUtc = null;
+        // "More" only means "the rest of the prices" right after a partial price answer; it is cleared on every turn.
+        ctx.MorePricesOffered = ctx.Draft.MorePricesOffered;
+        ctx.Draft.MorePricesOffered = false;
 
         if (turn.MessageType == MessageType.Unsupported)
         {
@@ -90,6 +93,11 @@ public sealed partial class ConversationEngine(
         {
             await ResetAsync(ctx, ct);
             ShowMenu(ctx, welcome: false);
+            return;
+        }
+        if (ctx.MorePricesOffered && ShopInfoResponder.IsMoreRequest(ctx.Text))
+        {
+            ShowInfo(ctx, new InfoAnswer(shopInfo.FullPrices()));
             return;
         }
         // A bare "hi" in the middle of a booking is not a misunderstanding and does not reset anything: pick up where we were.
@@ -171,16 +179,25 @@ public sealed partial class ConversationEngine(
 
     /// <summary>Sends the answer to an information question, then goes back to wherever the customer was (or shows the menu).
     /// Never counts as a misunderstanding.</summary>
-    private void ShowInfo(TurnContext ctx, string answer)
+    private void ShowInfo(TurnContext ctx, InfoAnswer answer)
     {
         var midBooking = ctx.State is not (ConversationState.Idle or ConversationState.Greeting or ConversationState.BookingConfirmed or ConversationState.ViewingBookings);
         if (midBooking)
         {
-            ctx.Reply(answer + "\n\nBack to your booking: " + StatePrompt(ctx));
+            ctx.Reply(answer.Text + "\n\nBack to your booking: " + StatePrompt(ctx));
             return;
         }
         // Not in the middle of anything (a first message such as "how much is a kids cut"): answer, then offer to book.
-        ctx.Reply(answer);
+        if (answer.Partial)
+        {
+            // Only part of the price list was shown: offer the rest as a button and as the word "more".
+            ctx.Draft.MorePricesOffered = true;
+            ctx.Reply(answer.Text + "\n\nReply *more* to see our full price list.", [new("more", "More prices")]);
+        }
+        else
+        {
+            ctx.Reply(answer.Text);
+        }
         ShowMenu(ctx, welcome: false);
     }
 
@@ -1193,6 +1210,7 @@ public sealed partial class ConversationEngine(
         public string Text { get; } = IntentRecognizer.Normalize(turn.Text);
         public Intent Intent => IntentRecognizer.Recognize(Text);
         public bool Misunderstood { get; set; }
+        public bool MorePricesOffered { get; set; }
         public bool HasNotes => _notes.Count > 0;
 
         public ConversationState State

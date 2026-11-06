@@ -6,6 +6,10 @@ using VintageFades.Domain;
 
 namespace VintageFades.Application.Chatbot;
 
+/// <summary>An answer to an information question. <paramref name="Partial"/> means it showed only part of the price list,
+/// so the customer is offered the rest ("more").</summary>
+public sealed record InfoAnswer(string Text, bool Partial = false);
+
 /// <summary>
 /// Answers questions that are not part of a booking: prices, what the shop offers, hours, location, contact details,
 /// walk-ins and similar. It works on the customer's own words, so a first message like "how much is a kids cut" or
@@ -38,29 +42,35 @@ public sealed partial class ShopInfoResponder(IOptions<ShopInfoOptions> options)
     /// day, time or barber (<paramref name="hasBookingDetails"/>), only an opening-hours question is answered: anything else
     /// is a booking request ("do you have space tomorrow at 2?") and belongs to the booking flow.
     /// </summary>
-    public string? TryAnswer(string normalized, ShopSettings settings, bool hasBookingDetails = false)
+    public InfoAnswer? TryAnswer(string normalized, ShopSettings settings, bool hasBookingDetails = false)
     {
         if (string.IsNullOrWhiteSpace(normalized)) return null;
         var text = Prepare(normalized);
 
-        if (Hours().IsMatch(text)) return HoursAnswer(settings);
+        if (Hours().IsMatch(text)) return new(HoursAnswer(settings));
         if (hasBookingDetails) return null;
 
-        if (Duration().IsMatch(text)) return DurationAnswer(settings);
-        if (Contact().IsMatch(text)) return ContactAnswer();
-        if (Location().IsMatch(text) && !Price().IsMatch(text)) return LocationAnswer();
+        if (Duration().IsMatch(text)) return new(DurationAnswer(settings));
+        if (Contact().IsMatch(text)) return new(ContactAnswer());
+        if (Location().IsMatch(text) && !Price().IsMatch(text)) return new(LocationAnswer());
 
         var faq = _info.Faqs.FirstOrDefault(f => f.Keywords.Any(k => ContainsWord(text, k)));
-        if (faq is not null) return faq.Answer;
+        if (faq is not null) return new(faq.Answer);
 
-        var matches = MatchItems(text);
-        if (Price().IsMatch(text)) return matches.Count > 0 ? ItemsAnswer(matches, asked: "price") : FullPriceList();
-        if (ServicesAsk().IsMatch(text)) return matches.Count > 0 ? ItemsAnswer(matches, asked: "service") : ServicesOverview();
+        var (matches, genericOnly) = MatchItems(text);
+        if (Price().IsMatch(text)) return matches.Count > 0 ? ItemsAnswer(matches, genericOnly, asked: "price") : new(FullPrices());
+        if (ServicesAsk().IsMatch(text)) return matches.Count > 0 ? ItemsAnswer(matches, genericOnly, asked: "service") : new(ServicesOverview());
         // "Do you do facials?" is answered only when the service is on the list; "do you have space tomorrow?" is a booking question.
-        if (DoYouDo().IsMatch(text) && matches.Count > 0) return ItemsAnswer(matches, asked: "service");
-        if (Info().IsMatch(text)) return matches.Count > 0 ? ItemsAnswer(matches, asked: "price") : FullPriceList();
+        if (DoYouDo().IsMatch(text) && matches.Count > 0) return ItemsAnswer(matches, genericOnly, asked: "service");
+        if (Info().IsMatch(text)) return matches.Count > 0 ? ItemsAnswer(matches, genericOnly, asked: "price") : new(FullPrices());
         return null;
     }
+
+    /// <summary>"More", "show more", "full list": the customer wants the whole price list after a partial answer.</summary>
+    public static bool IsMoreRequest(string normalized) => MoreRequest().IsMatch(normalized);
+
+    [GeneratedRegex(@"^(more|show more|see more|more please|more prices|the rest|see all|show all|all|all prices|everything|full list|full price list|full catalog|full catalogue|catalog|catalogue)$")]
+    private static partial Regex MoreRequest();
 
     // ---------------------------------------------------------------- answers
 
@@ -93,7 +103,8 @@ public sealed partial class ShopInfoResponder(IOptions<ShopInfoOptions> options)
         return text.ToString().TrimEnd();
     }
 
-    private string FullPriceList()
+    /// <summary>The whole price list, grouped by category, with the shop's notes.</summary>
+    public string FullPrices()
     {
         if (_info.Catalog.Count == 0) return "Please message the shop directly for our price list.";
         var text = new StringBuilder("Our price list:\n");
@@ -111,14 +122,17 @@ public sealed partial class ShopInfoResponder(IOptions<ShopInfoOptions> options)
         return text.ToString();
     }
 
-    private string ItemsAnswer(IReadOnlyList<(CatalogCategory Category, CatalogItem Item)> matches, string asked)
+    /// <summary>A partial answer (the engine adds "reply *more* for the full price list"). When the customer only used a general
+    /// word like "haircut", or too many services match, the whole category is shown instead of a handful of lines.</summary>
+    private InfoAnswer ItemsAnswer(IReadOnlyList<(CatalogCategory Category, CatalogItem Item)> matches, bool genericOnly, string asked)
     {
-        // Too many matches to read comfortably: show the whole category (or categories) they belong to.
-        if (matches.Count > MaxItems)
+        if (genericOnly || matches.Count > MaxItems)
         {
+            // The category most of the matches belong to, listed in full ("haircut price" shows every haircut service).
+            var best = matches.GroupBy(m => m.Category).OrderByDescending(g => g.Count()).First().Key;
             var text = new StringBuilder();
-            foreach (var category in matches.Select(m => m.Category).Distinct()) AppendCategory(text, category);
-            return text.ToString().TrimEnd();
+            AppendCategory(text, best);
+            return new InfoAnswer(text.ToString().Trim(), Partial: true);
         }
 
         var lines = new StringBuilder(asked == "service" ? "Yes, we do:\n" : "");
@@ -128,8 +142,7 @@ public sealed partial class ShopInfoResponder(IOptions<ShopInfoOptions> options)
             if (!string.IsNullOrWhiteSpace(category.Note) && matches.Count(m => m.Category == category) == matches.Count)
                 lines.AppendLine(category.Note);
         }
-        lines.Append("\nSay *price list* to see everything.");
-        return lines.ToString().TrimEnd();
+        return new InfoAnswer(lines.ToString().TrimEnd(), Partial: true);
     }
 
     private static void AppendCategory(StringBuilder text, CatalogCategory category)
@@ -143,26 +156,30 @@ public sealed partial class ShopInfoResponder(IOptions<ShopInfoOptions> options)
     // ---------------------------------------------------------------- matching
 
     /// <summary>The services whose keywords best match the customer's words. Specific words outweigh generic ones.</summary>
-    private List<(CatalogCategory Category, CatalogItem Item)> MatchItems(string text)
+    private (List<(CatalogCategory Category, CatalogItem Item)> Items, bool GenericOnly) MatchItems(string text)
     {
-        var scored = new List<(CatalogCategory Category, CatalogItem Item, double Score)>();
+        var scored = new List<(CatalogCategory Category, CatalogItem Item, double Score, double Specific)>();
         foreach (var category in _info.Catalog)
         {
             foreach (var item in category.Items)
             {
-                var score = 0.0;
+                double score = 0, specific = 0;
                 foreach (var keyword in item.Keywords)
                 {
                     if (!ContainsWord(text, keyword)) continue;
-                    var words = keyword.Count(c => c == ' ') + 1;
-                    score += Generic.Contains(keyword.ToLowerInvariant()) ? 0.5 : words;
+                    if (Generic.Contains(keyword.ToLowerInvariant())) { score += 0.5; continue; }
+                    var weight = keyword.Count(c => c == ' ') + 1;
+                    score += weight;
+                    specific += weight;
                 }
-                if (score > 0) scored.Add((category, item, score));
+                if (score > 0) scored.Add((category, item, score, specific));
             }
         }
-        if (scored.Count == 0) return [];
+        if (scored.Count == 0) return ([], false);
         var best = scored.Max(s => s.Score);
-        return scored.Where(s => s.Score >= best).Select(s => (s.Category, s.Item)).ToList();
+        var winners = scored.Where(s => s.Score >= best).ToList();
+        // Nothing but general words matched ("haircut", "cut"): the customer didn't name a particular service.
+        return (winners.Select(s => (s.Category, s.Item)).ToList(), winners.All(s => s.Specific == 0));
     }
 
     /// <summary>Whole-word match of a keyword or phrase; a trailing "s" or "es" on the customer's word is allowed.</summary>
