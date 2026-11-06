@@ -228,31 +228,49 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
     }
 
     [Fact]
-    public async Task First_messages_without_a_greeting_get_a_direct_answer_and_the_menu()
+    public async Task First_messages_without_a_greeting_get_a_direct_answer_and_the_menu_comes_ten_minutes_later()
     {
         // Meta's default first message on a click-to-WhatsApp ad.
         var lead = await Say("Hello! Can I get more info on this?", "264810000001");
         Assert.Contains("Haircut services", lead);
         Assert.Contains("Massage services", lead);
-        Assert.Contains("1. Book an appointment", lead);
 
         var price = await Say("How much is a kids cut?", "264810000002");
         Assert.Contains("Kids cut (below 11) – N$100", price);
         Assert.DoesNotContain("Welcome to", price); // answered the question instead of a generic welcome
-        Assert.Contains("1. Book an appointment", price);
 
-        var where = await Say("where are you located", "264810000003");
-        Assert.Contains("26 Van Rhijn Street", where);
+        Assert.Contains("26 Van Rhijn Street", await Say("where are you located", "264810000003"));
+        Assert.Contains("30 minute express facial for men – N$500", await Say("do you guys do facials", "264810000004"));
+        Assert.Contains("Opening hours: 09:00 – 19:00", await Say("what time do you open?", "264810000005"));
 
-        var facial = await Say("do you guys do facials", "264810000004");
-        Assert.Contains("30 minute express facial for men – N$500", facial);
-
-        var hours = await Say("what time do you open?", "264810000005");
-        Assert.Contains("Opening hours: 09:00 – 19:00", hours);
-
-        // None of that started a booking, and the customer can carry on with the menu.
+        // The answers come alone: no "What would you like to do?" yet, and nothing was booked.
+        Assert.DoesNotContain(App.Meta.Requests, r => r.Text.Contains("What would you like to do?"));
         Assert.Equal(0, await App.Db(db => db.Bookings.CountAsync()));
+
+        App.Time.Advance(TimeSpan.FromMinutes(9));
+        Assert.Equal(0, await RunIdleCheckAsync());
+        App.Time.Advance(TimeSpan.FromMinutes(2)); // 11 minutes of silence
+        Assert.Equal(5, await RunIdleCheckAsync());
+        await App.DispatchAsync();
+        foreach (var customer in new[] { "264810000001", "264810000002", "264810000003", "264810000004", "264810000005" })
+            Assert.Single(App.Meta.To(customer), r => r.Text.Contains("What would you like to do?"));
+        Assert.Equal(0, await RunIdleCheckAsync()); // sent once
+
+        // The menu works as usual from there.
         Assert.Contains("Who would you like to book with?", await Say("1", "264810000002"));
+    }
+
+    [Fact]
+    public async Task A_reply_within_ten_minutes_cancels_the_delayed_menu()
+    {
+        await Say("how much is a kids cut");
+        App.Time.Advance(TimeSpan.FromMinutes(5));
+        Assert.Contains("Who would you like to book with?", await Say("book me tomorrow at 14:00"));
+
+        App.Time.Advance(TimeSpan.FromMinutes(30));
+        await RunIdleCheckAsync(); // may ask "are you still there?", but must not send the menu on top of the booking
+        await App.DispatchAsync();
+        Assert.DoesNotContain(App.Meta.To(Customer), r => r.Text.StartsWith("What would you like to do?"));
     }
 
     [Fact]
@@ -263,17 +281,29 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
         Assert.Contains("Beard trim – N$30", first);
         Assert.Contains("Reply *more* to see our full price list.", first);
         Assert.DoesNotContain("Massage services", first);
-        Assert.Contains("1. Book an appointment", first); // the menu follows
+        Assert.DoesNotContain("What would you like to do?", first);
         Assert.Contains(App.Meta.To(Customer), r => r.Type == "interactive" && r.Text.Contains("Reply *more*")); // offered as a button too
 
         var full = await Say("more");
         Assert.Contains("Our price list:", full);
         Assert.Contains("Massage services (30 minutes)", full);
         Assert.Contains("Infrared light therapy – N$150", full);
-        Assert.Contains("1. Book an appointment", full);
         Assert.DoesNotContain("Reply *more*", full);
+        Assert.DoesNotContain("What would you like to do?", full);
+
+        // Silence after the full list: the menu follows after ten minutes, once.
+        App.Time.Advance(TimeSpan.FromMinutes(11));
+        Assert.Equal(1, await RunIdleCheckAsync());
+        await App.DispatchAsync();
+        Assert.Single(App.Meta.To(Customer), r => r.Text.Contains("What would you like to do?"));
     }
 
+    [Fact]
+    public async Task Students_haircut_is_listed_first()
+    {
+        var first = await Say("haircut price");
+        Assert.Matches(@"\*Haircut services\*\s+• Students haircut – N\$120\s+• Classic men's haircut – N\$150", first);
+    }
     [Fact]
     public async Task The_more_button_works_and_a_stray_more_does_not_dump_the_catalog()
     {

@@ -63,6 +63,8 @@ public sealed partial class ConversationEngine(
         // "More" only means "the rest of the prices" right after a partial price answer; it is cleared on every turn.
         ctx.MorePricesOffered = ctx.Draft.MorePricesOffered;
         ctx.Draft.MorePricesOffered = false;
+        // Any message from the customer cancels a delayed menu; their message decides what happens next.
+        ctx.Draft.MenuDueAtUtc = null;
 
         if (turn.MessageType == MessageType.Unsupported)
         {
@@ -187,7 +189,6 @@ public sealed partial class ConversationEngine(
             ctx.Reply(answer.Text + "\n\nBack to your booking: " + StatePrompt(ctx));
             return;
         }
-        // Not in the middle of anything (a first message such as "how much is a kids cut"): answer, then offer to book.
         if (answer.Partial)
         {
             // Only part of the price list was shown: offer the rest as a button and as the word "more".
@@ -198,15 +199,27 @@ public sealed partial class ConversationEngine(
         {
             ctx.Reply(answer.Text);
         }
-        ShowMenu(ctx, welcome: false);
+
+        // A first message that is a question ("how much is a kids cut"): don't bury the answer under the menu. Wait and see what the
+        // customer says next; if they stay silent for MenuDelayMinutes, the scheduler sends the menu (IdleConversationService).
+        // If they have already seen the menu, or just finished a booking, there is nothing more to offer.
+        if (ctx.State == ConversationState.Idle) ctx.Draft.MenuDueAtUtc = ctx.Now.AddMinutes(_chatbot.MenuDelayMinutes);
     }
 
     private void ShowMenu(TurnContext ctx, bool welcome)
     {
+        var menu = BuildMenu(welcome, ctx.Calendar.Settings.ShopName);
+        ctx.Reply(menu.Text, menu.Options);
+        ctx.State = ConversationState.Greeting;
+    }
+
+    /// <summary>The main menu, with the welcome lines for a first contact. Also used by the scheduler for the delayed menu.</summary>
+    public static OutboundMessage BuildMenu(bool welcome, string shopName)
+    {
         var text = new StringBuilder();
         if (welcome)
         {
-            text.AppendLine($"Welcome to {ctx.Calendar.Settings.ShopName}!");
+            text.AppendLine($"Welcome to {shopName}!");
             text.AppendLine("Welcome to the fresh-fade experience.");
             text.AppendLine("I can help you book an appointment.");
             text.AppendLine();
@@ -218,12 +231,11 @@ public sealed partial class ConversationEngine(
         text.AppendLine("3. Reschedule an appointment");
         text.AppendLine("4. Cancel an appointment");
         text.Append("5. Speak to someone");
-        ctx.Reply(text.ToString(),
+        return new OutboundMessage(text.ToString(),
         [
             new("1", "Book appointment"), new("2", "View my bookings"), new("3", "Reschedule"),
             new("4", "Cancel appointment"), new("5", "Speak to someone")
         ]);
-        ctx.State = ConversationState.Greeting;
     }
 
     // ---------------------------------------------------------------- booking flow

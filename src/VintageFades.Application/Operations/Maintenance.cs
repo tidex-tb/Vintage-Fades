@@ -85,6 +85,7 @@ public sealed class ReminderScheduler(
 public sealed class IdleConversationService(
     IAppDbContext db,
     BookingService bookings,
+    ShopSettingsProvider shopSettings,
     NotificationService notifications,
     TimeProvider time,
     IOptions<ChatbotOptions> options,
@@ -145,8 +146,41 @@ public sealed class IdleConversationService(
                 logger.LogError(ex, "Idle check failed for conversation {ConversationId}", conversation.Id);
             }
         }
+        changed += await SendDelayedMenusAsync(now, windowStart, ct);
         if (changed > 0) logger.LogInformation("Idle conversations handled: {Count}", changed);
         return changed;
+    }
+
+    /// <summary>A first-contact question (a price, say) is answered without the menu. If the customer says nothing more for
+    /// MenuDelayMinutes, send "What would you like to do?" so they are not left without options.</summary>
+    private async Task<int> SendDelayedMenusAsync(DateTime now, DateTime windowStart, CancellationToken ct)
+    {
+        var candidates = await db.Conversations
+            .Where(c => c.CurrentState == ConversationState.Idle && c.CurrentBookingIntent != null && c.LastInboundAtUtc != null && c.LastInboundAtUtc > windowStart)
+            .ToListAsync(ct);
+
+        var sent = 0;
+        foreach (var conversation in candidates)
+        {
+            var draft = BookingDraft.Deserialize(conversation.CurrentBookingIntent);
+            if (draft.MenuDueAtUtc is not { } due || due > now) continue;
+            try
+            {
+                var shopName = (await shopSettings.GetCalendarAsync(ct)).Settings.ShopName;
+                draft.MenuDueAtUtc = null;
+                conversation.CurrentBookingIntent = draft.Serialize();
+                conversation.CurrentState = ConversationState.Greeting;
+                conversation.UpdatedAtUtc = now;
+                await SendAsync(conversation, ConversationEngine.BuildMenu(welcome: false, shopName), now, ct);
+                await db.SaveChangesAsync(ct);
+                sent++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Delayed menu failed for conversation {ConversationId}", conversation.Id);
+            }
+        }
+        return sent;
     }
 
     private async Task SendAsync(Conversation conversation, OutboundMessage message, DateTime now, CancellationToken ct)

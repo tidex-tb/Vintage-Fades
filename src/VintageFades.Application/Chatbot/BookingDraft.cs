@@ -46,6 +46,9 @@ public sealed class BookingDraft
     public DateTime? IdleCheckSentAtUtc { get; set; }
     /// <summary>Set when the bot showed only part of the price list and offered "more"; the next message may ask for the rest.</summary>
     public bool MorePricesOffered { get; set; }
+    /// <summary>Set when the bot answered a first-contact question without the menu; if the customer stays silent until this time,
+    /// the scheduler sends "What would you like to do?".</summary>
+    public DateTime? MenuDueAtUtc { get; set; }
 
     public string Serialize() => JsonSerializer.Serialize(this, Json);
 
