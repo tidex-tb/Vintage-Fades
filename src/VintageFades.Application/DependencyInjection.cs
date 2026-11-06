@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ShopSettingsProvider>();
         services.AddScoped<NotificationService>();
         services.AddScoped<BookingService>();
+        services.AddSingleton<ShopInfoResponder>();
         services.AddScoped<ConversationEngine>();
         services.AddScoped<OwnerCommandHandler>();
         services.AddScoped<InboundMessageHandler>();

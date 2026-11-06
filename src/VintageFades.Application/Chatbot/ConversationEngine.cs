@@ -23,11 +23,10 @@ public sealed partial class ConversationEngine(
     TimeProvider time,
     IOptions<ChatbotOptions> chatbotOptions,
     IOptions<BookingOptions> bookingOptions,
-    IOptions<ShopInfoOptions> shopInfoOptions)
+    ShopInfoResponder shopInfo)
 {
     private readonly ChatbotOptions _chatbot = chatbotOptions.Value;
     private readonly BookingOptions _booking = bookingOptions.Value;
-    private readonly ShopInfoOptions _info = shopInfoOptions.Value;
 
     private static readonly OutboundMessage[] NoReplies = [];
     private static readonly ReplyOption[] YesNo = [new("yes", "Yes"), new("no", "No")];
@@ -99,11 +98,14 @@ public sealed partial class ConversationEngine(
             ctx.Reply("Hi again! Let's pick up where we left off. " + StatePrompt(ctx));
             return;
         }
-        // Price, hours and location questions are answered wherever the customer is, unless the same message
-        // also carries a day, time or barber that the booking flow should use.
-        if (ctx.Intent.HasFlag(Intent.Info) && !ctx.Intent.HasFlag(Intent.Cancel) && !Extract(ctx, ctx.Text, allowBareNumber: false).Any)
+        // Questions about prices, services, hours, location or contact details are answered wherever the customer is,
+        // with or without a greeting first. A name typed at the name step is not a question.
+        var otherRequest = Intent.Cancel | Intent.Reschedule | Intent.ViewBookings | Intent.Human;
+        var isNameStep = ctx.State == ConversationState.CollectingCustomerName && !ShopInfoResponder.LooksLikeQuestion(ctx.RawText, ctx.Text);
+        if ((ctx.Intent & otherRequest) == 0 && !isNameStep &&
+            shopInfo.TryAnswer(ctx.Text, ctx.Calendar.Settings, Extract(ctx, ctx.Text, allowBareNumber: false).Any) is { } answer)
         {
-            ShowInfo(ctx);
+            ShowInfo(ctx, answer);
             return;
         }
 
@@ -167,31 +169,18 @@ public sealed partial class ConversationEngine(
         Unknown(ctx);
     }
 
-    /// <summary>Prices, hours and address, then back to wherever the customer was. Never counts as a misunderstanding.</summary>
-    private void ShowInfo(TurnContext ctx)
+    /// <summary>Sends the answer to an information question, then goes back to wherever the customer was (or shows the menu).
+    /// Never counts as a misunderstanding.</summary>
+    private void ShowInfo(TurnContext ctx, string answer)
     {
-        var s = ctx.Calendar.Settings;
-        var text = new StringBuilder();
-        if (_info.Prices.Count > 0)
-        {
-            text.AppendLine("Our prices:");
-            foreach (var price in _info.Prices) text.AppendLine($"• {price}");
-            text.AppendLine();
-        }
-        text.AppendLine(string.IsNullOrWhiteSpace(_info.Hours)
-            ? $"Opening hours: {Format.Time(s.OpeningTime)} – {Format.Time(s.ClosingTime)}"
-            : $"Opening hours: {_info.Hours}");
-        if (!string.IsNullOrWhiteSpace(_info.Address)) text.AppendLine($"Find us: {_info.Address}");
-        text.AppendLine();
         var midBooking = ctx.State is not (ConversationState.Idle or ConversationState.Greeting or ConversationState.BookingConfirmed or ConversationState.ViewingBookings);
         if (midBooking)
         {
-            text.Append("Back to your booking: " + StatePrompt(ctx));
-            ctx.Reply(text.ToString());
+            ctx.Reply(answer + "\n\nBack to your booking: " + StatePrompt(ctx));
             return;
         }
-        // Not in the middle of anything (for example a lead from an ad asking for info): answer, then show the menu.
-        ctx.Reply(text.ToString().TrimEnd());
+        // Not in the middle of anything (a first message such as "how much is a kids cut"): answer, then offer to book.
+        ctx.Reply(answer);
         ShowMenu(ctx, welcome: false);
     }
 

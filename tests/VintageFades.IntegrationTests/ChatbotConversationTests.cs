@@ -219,17 +219,61 @@ public class ChatbotConversationTests(TestApp app) : IntegrationTest(app)
         await Say("Can I book tomorrow?");
         await Say("1");
         var reply = await Say("how much is a taper with go black");
-        Assert.Contains("Haircut (adults): N$150", reply);
-        Assert.Contains("Haircut + full black: N$250", reply);
-        Assert.Contains("Opening hours:", reply);
-        Assert.Contains("26 Van Rhijn Street", reply);
+        Assert.Contains("Adult's cut + go black – N$250", reply);
+        Assert.Contains("Full black dye – N$100", reply);
         Assert.Contains("Back to your booking: Reply with the number of the slot", reply);
         Assert.DoesNotContain("didn't quite get that", reply);
 
         Assert.Contains("with Kapza is available", await Say("3"));
-        var lead = await Say("Hello! Can I get more info on this?", "264819999999"); // Meta's default first message on a click-to-WhatsApp ad
-        Assert.Contains("Haircut (adults): N$150", lead);
+    }
+
+    [Fact]
+    public async Task First_messages_without_a_greeting_get_a_direct_answer_and_the_menu()
+    {
+        // Meta's default first message on a click-to-WhatsApp ad.
+        var lead = await Say("Hello! Can I get more info on this?", "264810000001");
+        Assert.Contains("Haircut services", lead);
+        Assert.Contains("Massage services", lead);
         Assert.Contains("1. Book an appointment", lead);
+
+        var price = await Say("How much is a kids cut?", "264810000002");
+        Assert.Contains("Kids cut (below 11) – N$100", price);
+        Assert.DoesNotContain("Welcome to", price); // answered the question instead of a generic welcome
+        Assert.Contains("1. Book an appointment", price);
+
+        var where = await Say("where are you located", "264810000003");
+        Assert.Contains("26 Van Rhijn Street", where);
+
+        var facial = await Say("do you guys do facials", "264810000004");
+        Assert.Contains("30 minute express facial for men – N$500", facial);
+
+        var hours = await Say("what time do you open?", "264810000005");
+        Assert.Contains("Opening hours: 09:00 – 19:00", hours);
+
+        // None of that started a booking, and the customer can carry on with the menu.
+        Assert.Equal(0, await App.Db(db => db.Bookings.CountAsync()));
+        Assert.Contains("Who would you like to book with?", await Say("1", "264810000002"));
+    }
+
+    [Fact]
+    public async Task A_price_question_after_a_booking_request_does_not_lose_the_booking_details()
+    {
+        await Say("I want a haircut tomorrow at 14:00"); // no barber yet, so the bot asks for one
+        var reply = await Say("how much is it?");
+        Assert.Contains("Haircut services", reply);
+        Assert.Contains("Back to your booking: Who would you like to book with?", reply);
+
+        // The day and time given earlier are still remembered.
+        Assert.Contains("14:00 on Tuesday, 3 November with Kapza is available", await Say("1"));
+    }
+
+    [Fact]
+    public async Task A_name_at_the_name_step_is_not_mistaken_for_a_service()
+    {
+        await Say("Book me with Kapza tomorrow at 14:00");
+        var reply = await Say("Hollywood"); // a surname that happens to be a service name
+        Assert.Contains("confirm your appointment", reply);
+        Assert.DoesNotContain("N$", reply);
     }
 
     [Fact]
