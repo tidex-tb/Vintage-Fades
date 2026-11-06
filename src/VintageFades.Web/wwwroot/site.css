@@ -75,6 +75,8 @@ h3 { font-size: 1.05rem; }
 .cta-row.center { justify-content: center; margin-top: 24px; }
 .facts { list-style: none; padding: 0; margin: 34px 0 0; display: flex; flex-wrap: wrap; gap: 10px; }
 .facts li { padding: 8px 14px; border-radius: 999px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08); font-size: .9rem; color: #d8d4f0; }
+.brand img { border-radius: 10px; }
+.hero-logo { width: min(100%, 460px); justify-self: center; border-radius: 32px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 0 1px rgba(217, 180, 74, .25), 0 0 90px rgba(217, 180, 74, .16); }
 .hero-card { background: linear-gradient(160deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: 22px; padding: 20px; box-shadow: var(--shadow); transform: rotate(2deg); }
 .mini-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 14px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 5px rgba(52, 211, 153, .18); }
@@ -196,7 +198,9 @@ input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rg
 
 @media (max-width: 900px) {
   .hero-grid, .visit-grid { grid-template-columns: 1fr; gap: 36px; }
-  .hero-card { transform: none; max-width: 420px; }
+  .brand img { border-radius: 10px; }
+.hero-logo { width: min(100%, 460px); justify-self: center; border-radius: 32px; box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 0 1px rgba(217, 180, 74, .25), 0 0 90px rgba(217, 180, 74, .16); }
+.hero-card { transform: none; max-width: 420px; }
   .book-grid { grid-template-columns: 1fr; }
   .summary { position: static; }
   .nav nav { display: none; }

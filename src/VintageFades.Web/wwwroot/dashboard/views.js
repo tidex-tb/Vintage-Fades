@@ -400,7 +400,7 @@ function loginView() {
     state.key = null;
     error.textContent = !res ? 'Can’t reach the server.' : res.status === 429 ? 'Too many tries. Wait a minute.' : 'That key was not accepted. Check it matches Admin__ApiKey in Railway.';
   } }, h('label', {}, 'Admin key', input), h('button', { class: 'btn', type: 'submit' }, 'Open dashboard'), error);
-  return h('div', { class: 'login' }, h('img', { src: 'icon.svg', alt: '' }), h('h1', {}, 'Vintage Fades'), h('div', { class: 'muted' }, 'Appointments and earnings'), form);
+  return h('div', { class: 'login' }, h('img', { src: '/logo.jpeg', alt: '' }), h('h1', {}, 'Vintage Fades'), h('div', { class: 'muted' }, 'Appointments and earnings'), form);
 }
 
 function render() {
@@ -409,7 +409,7 @@ function render() {
   if (!state.key) { app.append(loginView()); return; }
 
   const side = h('aside', { class: 'side' },
-    h('div', { class: 'logo' }, h('img', { src: 'icon.svg', alt: '' }), h('span', {}, 'Vintage ', h('b', {}, 'Fades'))),
+    h('div', { class: 'logo' }, h('img', { src: '/logo.jpeg', alt: '' }), h('span', {}, 'Vintage ', h('b', {}, 'Fades'))),
     h('nav', { 'aria-label': 'Sections' }, NAV.map(([id, label, icon]) =>
       h('button', { class: state.tab === id ? 'active' : '', onclick: () => go(id), 'aria-current': state.tab === id ? 'page' : null },
         h('span', { class: 'ic', 'aria-hidden': 'true' }, icon), h('span', { class: 'tx' }, label)))),
