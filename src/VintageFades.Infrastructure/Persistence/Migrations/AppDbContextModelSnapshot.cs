@@ -559,6 +559,9 @@ namespace VintageFades.Infrastructure.Persistence.Migrations
                     b.Property<int>("BookingAdvanceDays")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("BotPausedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("CancellationNoticeHours")
                         .HasColumnType("integer");
 

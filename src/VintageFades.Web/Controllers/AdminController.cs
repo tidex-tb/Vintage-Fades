@@ -18,6 +18,7 @@ namespace VintageFades.Web.Controllers;
 public sealed partial class AdminController(
     AdminService admin,
     DashboardService dashboard,
+    BotSwitch botSwitch,
     BookingService bookingService,
     IOptions<ShopInfoOptions> shopInfo,
     OperationalStatusService status,
@@ -42,6 +43,15 @@ public sealed partial class AdminController(
     /// <summary>One day: every appointment with what was recorded for it, plus walk-ins and the day's revenue.</summary>
     [HttpGet("day")]
     public async Task<DaySchedule> Day([FromQuery] DateOnly date, CancellationToken ct) => await dashboard.GetDayAsync(date, ct);
+
+    /// <summary>The master switch for the chatbot on every platform.</summary>
+    [HttpGet("bot")]
+    public async Task<BotStatus> GetBot(CancellationToken ct) => await botSwitch.GetAsync(ct);
+
+    [HttpPut("bot")]
+    public async Task<BotStatus> SetBot(BotRequest request, CancellationToken ct) => await botSwitch.SetPausedAsync(request.Paused, ct);
+
+    public sealed record BotRequest(bool Paused);
 
     /// <summary>Seven days from the given date, for the dashboard's calendar grid.</summary>
     [HttpGet("week")]

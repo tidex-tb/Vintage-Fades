@@ -21,7 +21,8 @@ const state = {
   // calendar
   weekStart: null,
   week: null,
-  calBarber: ''
+  calBarber: '',
+  bot: { paused: false }
 };
 
 // ------------------------------------------------------------------ helpers

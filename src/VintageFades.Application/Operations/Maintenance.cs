@@ -87,6 +87,7 @@ public sealed class IdleConversationService(
     BookingService bookings,
     ShopSettingsProvider shopSettings,
     NotificationService notifications,
+    BotSwitch botSwitch,
     TimeProvider time,
     IOptions<ChatbotOptions> options,
     ILogger<IdleConversationService> logger)
@@ -101,6 +102,7 @@ public sealed class IdleConversationService(
 
     public async Task<int> ProcessAsync(CancellationToken ct)
     {
+        if (await botSwitch.IsPausedAsync(ct)) return 0; // switched off by the owner: no nudges or delayed menus
         var now = time.GetUtcNow().UtcDateTime;
         var o = options.Value;
         var quietSince = now.AddMinutes(-o.IdleCheckMinutes);

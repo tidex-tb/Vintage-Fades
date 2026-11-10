@@ -52,6 +52,13 @@ main { padding: 22px clamp(14px, 3vw, 36px) 60px; min-width: 0; }
 .top-actions { display: flex; gap: 10px; align-items: center; }
 .top-actions .only-mobile { display: none; }
 
+/* bot switch */
+.botpill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-weight: 700; font-size: 13.5px; }
+.botpill i { width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 4px rgba(52, 211, 153, .18); }
+.botpill.off { border-color: var(--warn); color: #ffb08f; background: rgba(255, 90, 31, .12); }
+.botpill.off i { background: var(--warn); box-shadow: 0 0 0 4px rgba(255, 90, 31, .22); }
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--warn); background: rgba(255, 90, 31, .1); }
+
 /* stats */
 .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
 .stats.three { grid-template-columns: repeat(3, 1fr); }

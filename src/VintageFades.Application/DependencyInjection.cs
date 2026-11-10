@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<NotificationService>();
         services.AddScoped<BookingService>();
         services.AddScoped<PublicBookingPortal>();
+        services.AddScoped<BotSwitch>();
         services.AddSingleton<ShopInfoResponder>();
         services.AddScoped<ConversationEngine>();
         services.AddScoped<OwnerCommandHandler>();

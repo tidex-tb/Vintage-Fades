@@ -5,6 +5,7 @@ using VintageFades.Application.Abstractions;
 using VintageFades.Application.Bookings;
 using VintageFades.Application.Chatbot;
 using VintageFades.Application.Messaging;
+using VintageFades.Application.Operations;
 using VintageFades.Domain;
 
 namespace VintageFades.Application.Inbound;
@@ -20,6 +21,7 @@ public sealed class InboundMessageHandler(
     NotificationService notifications,
     OwnerCommandHandler ownerCommands,
     BookingService bookings,
+    BotSwitch botSwitch,
     TimeProvider time,
     IOptions<NotificationOptions> notificationOptions,
     IOptions<ChatbotOptions> chatbotOptions,
@@ -82,6 +84,19 @@ public sealed class InboundMessageHandler(
             catch (DbUpdateException ex) when (db.IsUniqueViolation(ex))
             {
                 db.Discard(inbound);
+                return 0;
+            }
+
+            // The owner switched the bot off: keep the message, send nothing.
+            if (await botSwitch.IsPausedAsync(ct))
+            {
+                conversation.LastMessageAtUtc = now;
+                conversation.LastInboundAtUtc = now;
+                conversation.UpdatedAtUtc = now;
+                inbound.ProcessingStatus = ProcessingStatus.Processed;
+                inbound.ProcessedAtUtc = now;
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Bot is paused: {Platform} message {MessageId} stored without a reply", message.Platform, message.MessageId);
                 return 0;
             }
 

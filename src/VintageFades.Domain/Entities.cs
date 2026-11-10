@@ -141,6 +141,8 @@ public class ShopSettings
     public int AppointmentDurationMinutes { get; set; }
     public int BookingAdvanceDays { get; set; }
     public int CancellationNoticeHours { get; set; }
+    /// <summary>When the owner switched the chatbot off for every platform. Null = the bot is on.</summary>
+    public DateTime? BotPausedAtUtc { get; set; }
     /// <summary>Reminder offsets before the appointment, e.g. {1440, 120}.</summary>
     public int[] ReminderMinutesBefore { get; set; } = [];
     public DateTime CreatedAtUtc { get; set; }

@@ -339,8 +339,27 @@ function downloadCsv(r) {
 // ------------------------------------------------------------------ loading
 
 async function loadBasics() {
-  const [barbers, catalog] = await Promise.all([api('barbers'), api('catalog')]);
-  state.barbers = barbers; state.catalog = catalog;
+  const [barbers, catalog, bot] = await Promise.all([api('barbers'), api('catalog'), api('bot')]);
+  state.barbers = barbers; state.catalog = catalog; state.bot = bot;
+}
+
+async function setBot(paused) {
+  const ask = paused
+    ? 'Pause the bot on WhatsApp, Instagram and Messenger? Customers get no automatic replies until you turn it back on. Their messages are still saved.'
+    : 'Turn the bot back on for every platform?';
+  if (!confirm(ask)) return;
+  await run(null, async () => {
+    state.bot = await api('bot', { method: 'PUT', body: { paused } });
+    toast(state.bot.paused ? 'Bot paused on all platforms.' : 'Bot is on again.');
+    render();
+  });
+}
+
+function botSwitch() {
+  const paused = !!state.bot.paused;
+  return h('button', { class: 'botpill ' + (paused ? 'off' : 'on'), type: 'button', 'aria-pressed': String(!paused),
+    title: paused ? 'Click to turn the bot back on' : 'Click to pause the bot on every platform', onclick: () => setBot(!paused) },
+    h('i', {}), paused ? 'Bot paused' : 'Bot on');
 }
 async function loadDash() {
   const [from, to] = dashRangeDates();
@@ -420,12 +439,16 @@ function render() {
   const top = h('header', { class: 'top' },
     h('div', {}, h('h1', {}, TITLES[state.tab]), h('div', { class: 'muted small' }, prettyDate(todayStr()))),
     h('div', { class: 'top-actions' },
+      botSwitch(),
       h('button', { class: 'btn ghost small', onclick: () => walkInSheet() }, '✂ Walk-in'),
       h('button', { class: 'btn small', onclick: () => phoneBookingSheet() }, '＋ Phone booking'),
       h('button', { class: 'iconbtn only-mobile', 'aria-label': 'Sign out', onclick: () => { if (confirm('Sign out?')) signOut(); } }, '⎋')));
 
   const views = { dashboard: dashboardView, calendar: calendarView, appointments: appointmentsView, reports: reportView };
-  app.append(h('div', { class: 'shell' }, side, h('main', {}, top, (views[state.tab] || dashboardView)())));
+  const banner = state.bot.paused ? h('div', { class: 'banner', role: 'status' },
+    h('span', {}, '⏸ The bot is paused on WhatsApp, Instagram and Messenger. Customer messages are saved but not answered.'),
+    h('button', { class: 'btn small', onclick: () => setBot(false) }, 'Turn bot back on')) : null;
+  app.append(h('div', { class: 'shell' }, side, h('main', {}, top, banner, (views[state.tab] || dashboardView)())));
 }
 
 async function start() {

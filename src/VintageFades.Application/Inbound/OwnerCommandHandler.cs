@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using VintageFades.Application.Abstractions;
 using VintageFades.Application.Messaging;
+using VintageFades.Application.Operations;
 using VintageFades.Domain;
 
 namespace VintageFades.Application.Inbound;
@@ -10,15 +11,17 @@ namespace VintageFades.Application.Inbound;
 /// WhatsApp messages from the owner's configured number are commands, never customer chats:
 /// RESUME &lt;id&gt; hands a conversation back to the bot; REPLY &lt;id&gt; &lt;text&gt; answers a customer through the bot.
 /// </summary>
-public sealed partial class OwnerCommandHandler(IAppDbContext db, NotificationService notifications, TimeProvider time)
+public sealed partial class OwnerCommandHandler(IAppDbContext db, NotificationService notifications, BotSwitch botSwitch, TimeProvider time)
 {
     private const string Help =
         "VINTAGE FADES assistant commands:\n" +
         "RESUME <id> – hand conversation <id> back to the bot\n" +
         "REPLY <id> <message> – send a message to that customer\n" +
+        "BOT OFF / BOT ON – pause or restart the bot on every platform (BOT shows the state)\n" +
         "HELP – show this list";
 
     [GeneratedRegex(@"^\s*resume\s+#?(\d+)\s*$", RegexOptions.IgnoreCase)] private static partial Regex Resume();
+    [GeneratedRegex(@"^\s*bot(?:\s+(on|off|pause|resume|start|stop))?\s*$", RegexOptions.IgnoreCase)] private static partial Regex BotCommand();
     [GeneratedRegex(@"^\s*reply\s+#?(\d+)\s+(.+)$", RegexOptions.IgnoreCase | RegexOptions.Singleline)] private static partial Regex Reply();
 
     public async Task HandleAsync(InboundMessage message, CancellationToken ct)
@@ -31,6 +34,8 @@ public sealed partial class OwnerCommandHandler(IAppDbContext db, NotificationSe
         Match m;
         if ((m = Resume().Match(text)).Success)
             response = await ResumeAsync(long.Parse(m.Groups[1].Value), ct);
+        else if ((m = BotCommand().Match(text)).Success)
+            response = await BotAsync(m.Groups[1].Value.ToLowerInvariant(), ct);
         else if ((m = Reply().Match(text)).Success)
             response = await RelayAsync(long.Parse(m.Groups[1].Value), m.Groups[2].Value.Trim(), message.MessageId, ct);
         else
@@ -38,6 +43,23 @@ public sealed partial class OwnerCommandHandler(IAppDbContext db, NotificationSe
 
         notifications.EnqueueOwnerCommandReply(response, dedupeKey);
         await db.SaveChangesAsync(ct);
+    }
+
+    private async Task<string> BotAsync(string word, CancellationToken ct)
+    {
+        if (word is "off" or "pause" or "stop")
+        {
+            await botSwitch.SetPausedAsync(true, ct);
+            return "The bot is OFF on WhatsApp, Instagram and Messenger. Messages are saved but not answered. Send BOT ON to turn it back on.";
+        }
+        if (word is "on" or "resume" or "start")
+        {
+            await botSwitch.SetPausedAsync(false, ct);
+            return "The bot is ON again on every platform.";
+        }
+        return await botSwitch.IsPausedAsync(ct)
+            ? "The bot is OFF. Send BOT ON to turn it back on."
+            : "The bot is ON. Send BOT OFF to pause it on every platform.";
     }
 
     private async Task<string> ResumeAsync(long conversationId, CancellationToken ct)
