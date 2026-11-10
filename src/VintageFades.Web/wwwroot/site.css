@@ -181,13 +181,20 @@ input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rg
 .visit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
 .contact { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 14px; }
 .contact li { display: flex; gap: 14px; align-items: flex-start; }
-.contact .ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); }
+.contact .ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); color: var(--gold); }
+.contact .ic svg { width: 20px; height: 20px; }
+.contact .ic.ig { color: #e4405f; }
+.contact .ic.wa { color: #25d366; }
+.contact li { align-items: center; }
+.facts li { display: inline-flex; align-items: center; gap: 8px; }
+.facts li svg { width: 16px; height: 16px; color: var(--gold); flex: none; }
 .contact a { text-decoration: none; }
 .contact a:hover { color: var(--gold); }
 .contact small { display: block; color: var(--muted); }
 .map-card { min-height: 260px; border-radius: 22px; border: 1px solid var(--line); padding: 30px; display: grid; place-content: center; text-align: center; gap: 8px;
   background: radial-gradient(circle at 30% 30%, rgba(139, 92, 246, .25), transparent 55%), repeating-linear-gradient(0deg, transparent 0 38px, rgba(255, 255, 255, .04) 38px 39px), repeating-linear-gradient(90deg, transparent 0 38px, rgba(255, 255, 255, .04) 38px 39px), var(--panel); }
-.pin { font-size: 2.4rem; }
+.pin { display: grid; justify-items: center; }
+.pin svg { width: 44px; height: 44px; color: var(--gold); filter: drop-shadow(0 6px 14px rgba(217, 180, 74, .35)); }
 
 .footer { border-top: 1px solid rgba(255, 255, 255, .06); padding: 26px 0 40px; color: var(--muted); font-size: .9rem; }
 .foot-row { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
