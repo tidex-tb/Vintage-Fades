@@ -12,7 +12,7 @@ Messenger straight away. The database itself blocks double bookings. The owner g
 notifications for new bookings, cancellations, reschedules, handover requests and system problems.
 
 Phase 1 has no website, customer portal, dashboard, payments or analytics. The design leaves room to add
-them later without changes to the booking engine (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
+them later without changes to the booking engine.
 
 ## Architecture in one picture
 
@@ -109,14 +109,7 @@ dotnet test VintageFades.slnx
   (including concurrency), whole chatbot conversations, webhooks, retries, reminders and acceptance scenarios A–F.
 - `VintageFades.ArchitectureTests` checks the layering rules.
 
-The results are in [docs/ACCEPTANCE_REPORT.md](docs/ACCEPTANCE_REPORT.md).
-
 ## Documentation
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): components, message flow, booking flow, data model
-- [docs/BOOKING_RULES.md](docs/BOOKING_RULES.md): hours, slots, barber assignment, holds, concurrency
 - [docs/META_SETUP.md](docs/META_SETUP.md): WhatsApp (including Coexistence), Instagram and Messenger setup, permissions, app review
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): hosting, environment variables, HTTPS, migrations, backups, rollback
-- [docs/OPERATIONS.md](docs/OPERATIONS.md): owner notifications, troubleshooting, manual bookings, recovery
-- [docs/SECURITY.md](docs/SECURITY.md): secrets, tokens, signatures, customer data, access control
-- [docs/ACCEPTANCE_REPORT.md](docs/ACCEPTANCE_REPORT.md): test results, what still needs Meta credentials or approval, cost estimates

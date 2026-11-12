@@ -17,3 +17,9 @@ appsettings.Production.json
 backups/
 *.dump
 *.sql.gz
+# Project documents: kept on the developer's PC, not part of the running app
+docs/ACCEPTANCE_REPORT.md
+docs/ARCHITECTURE.md
+docs/BOOKING_RULES.md
+docs/OPERATIONS.md
+docs/SECURITY.md
