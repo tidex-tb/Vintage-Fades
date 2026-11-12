@@ -13,6 +13,7 @@ appsettings.Production.json
 .env
 .env.*
 !.env.example
+!.env.dev.example
 backups/
 *.dump
 *.sql.gz

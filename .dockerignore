@@ -9,4 +9,5 @@ docs/
 deploy/.env
 deploy/backups/
 .env
+.env.dev
 *.user

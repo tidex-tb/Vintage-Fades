@@ -45,6 +45,19 @@ Messenger ┘   (signature check,        (stored,          (per-message         
 
 ## Local setup
 
+**Whole app in Docker (database + app).** Copy `.env.dev.example` to `.env.dev` and fill it in, then:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+The app is at http://localhost:5175 (owner dashboard at `/dashboard/`, password = `Admin__ApiKey` in `.env.dev`; Swagger at `/swagger`) and PostgreSQL at `localhost:55434`. The stack shows in
+Docker Desktop as `vintagefades-dev`; start or stop that group to start or stop the database and the app together
+(data is kept). After code changes, run the command above again. To run the app from the IDE instead, use the same
+database: `Host=localhost;Port=55434;...` in user-secrets, as in steps 3–5 below.
+
+**Or step by step:**
+
 1. **Install .NET 10 SDK** from https://dotnet.microsoft.com/download/dotnet/10.0.
 2. **Start PostgreSQL.** The easiest way is Docker:
    ```bash

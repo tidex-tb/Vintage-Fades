@@ -1,0 +1,46 @@
+# VINTAGE FADES local development stack: PostgreSQL + the app, as one Docker project ("vintagefades-dev").
+# Production stays in deploy/docker-compose.yml; this file never touches it.
+#
+#   docker compose -f docker-compose.dev.yml up -d --build   first start, or after code changes
+#   docker compose -f docker-compose.dev.yml stop            stop everything (data is kept)
+#   docker compose -f docker-compose.dev.yml start           start everything again
+# After the first start, the "vintagefades-dev" group in Docker Desktop starts and stops the whole stack in one click.
+#
+# Settings come from .env.dev (git-ignored); .env.dev.example lists the names.
+# The app applies migrations and seeds on startup (Database:ApplyMigrationsOnStartup).
+# Ports, on this machine only (127.0.0.1):
+#   http://localhost:5175   the app (Development environment): site at /, owner dashboard at /dashboard/, Swagger at /swagger
+#   localhost:55434         PostgreSQL, for a SQL tool or `dotnet run` from the IDE
+name: vintagefades-dev
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    env_file: .env.dev
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      target: runtime
+    image: vintagefades-web:dev
+    restart: unless-stopped
+    env_file: .env.dev
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "127.0.0.1:5175:8080"
+    depends_on:
+      db: { condition: service_healthy, restart: true }
+
+volumes:
+  pgdata:
