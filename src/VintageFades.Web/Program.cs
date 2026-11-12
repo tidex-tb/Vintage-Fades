@@ -103,7 +103,9 @@ app.Use(async (context, next) =>
     {
         var headers = context.Response.Headers;
         headers["Content-Security-Policy"] =
+            // frame-src: the Google map on the public site (loaded only when the visitor presses "Show map").
             "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; " +
+            "frame-src https://www.google.com; " +
             "base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
         headers["X-Content-Type-Options"] = "nosniff";
         headers["Referrer-Policy"] = "no-referrer";

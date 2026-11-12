@@ -161,10 +161,17 @@
           <h2>Come say hi</h2>
           <ul class="contact" id="contact"></ul>
         </div>
-        <div class="map-card" aria-hidden="true">
-          <div class="pin" id="map-pin"></div>
-          <b id="map-address">26 Van Rhijn Street, Windhoek</b>
-          <span class="muted">Opposite ECN, close to the new Home Affairs</span>
+        <div class="map-card" id="map-card">
+          <div class="map-info" id="map-info">
+            <div class="pin" id="map-pin" aria-hidden="true"></div>
+            <b id="map-address">26 Van Rhijn Street, Windhoek</b>
+            <span class="muted">Opposite ECN, close to the new Home Affairs</span>
+            <div class="map-actions">
+              <button class="btn gold small" id="map-show" type="button">Show map</button>
+              <a class="btn ghost small" id="map-directions" href="https://www.google.com/maps/dir/?api=1&amp;destination=Vintage%20Fades%20Barber%20Shop%2C%2026%20Van%20Rhijn%20Street%2C%20Windhoek" target="_blank" rel="noopener">Directions</a>
+            </div>
+            <p class="fine">The map comes from Google Maps and only loads when you press Show map.</p>
+          </div>
         </div>
       </div>
     </section>

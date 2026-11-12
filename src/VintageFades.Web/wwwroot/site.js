@@ -108,6 +108,29 @@ function renderInfo(info) {
     href ? h('a', { href, ...(href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {}) }, text) : h('span', {}, text))));
   $('map-pin').replaceChildren(icon('pin'));
   if (info.address) $('map-address').textContent = info.address.split(',').slice(-2).join(',').trim() || info.address;
+  setUpMap(info);
+}
+
+// Google Maps without an API key: the "Maps URLs" links for directions, and the map itself as an
+// embedded frame. The frame loads only when asked, so Google sees nothing until the visitor wants it.
+function setUpMap(info) {
+  // The street and town only (the last two parts of the address), so landmark notes such as
+  // "Opposite ECN" do not confuse Google's search.
+  const street = (info.address || '').split(',').slice(-2).join(',').trim();
+  const query = encodeURIComponent([info.shopName, street, 'Namibia'].filter(Boolean).join(', '));
+  const directions = 'https://www.google.com/maps/dir/?api=1&destination=' + query;
+  $('map-directions').href = directions;
+  $('map-show').onclick = () => {
+    const frame = h('iframe', {
+      class: 'map-frame', src: 'https://www.google.com/maps?q=' + query + '&output=embed',
+      title: 'Map showing ' + info.shopName, loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin', allowfullscreen: true,
+    });
+    const links = h('div', { class: 'map-open' },
+      h('a', { class: 'btn gold small', href: directions, target: '_blank', rel: 'noopener' }, 'Directions'),
+      h('a', { class: 'btn ghost small', href: 'https://www.google.com/maps/search/?api=1&query=' + query, target: '_blank', rel: 'noopener' }, 'Open in Google Maps'));
+    $('map-card').classList.add('has-map');
+    $('map-card').replaceChildren(frame, links);
+  };
 }
 
 // ------------------------------------------------------------------ booking flow
